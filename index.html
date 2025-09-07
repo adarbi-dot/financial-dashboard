@@ -299,6 +299,57 @@
             if (!pastedText.trim()) {
               setMessage('Please paste text to parse.');
               return;
+              const handleSendMessage = async () => {
+    if (isChatting || !chatInput.trim()) return;
+    
+    const userMessage = { role: 'user', content: chatInput };
+    const newChatHistory = [...chatHistory, userMessage];
+    setChatHistory(newChatHistory);
+    setChatInput('');
+    setIsChatting(true);
+    
+    try {
+        const apiKey = "AIzaSyDNuMIjTS1XK4AZNpXiPB0nThFXS3MhsQk"; // Your API Key
+
+        const financialDataSummary = `
+            Total Income: ${totals.income} ${baseCurrency}, 
+            Total Expenses: ${totals.expense} ${baseCurrency},
+            Recent Transactions: ${JSON.stringify(transactions.slice(0, 5))}
+        `;
+
+        const prompt = `You are an expert financial coach. Based on the user's question and their financial data, provide clear, actionable advice. Analyze their spending, income, and goals to help them manage debt or improve their financial health.
+        
+        Financial Data Summary: ${financialDataSummary}
+        
+        Conversation History:
+        ${newChatHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+        
+        Your Answer:`;
+
+        const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+        
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
+        if (!response.ok) { throw new Error('API request failed'); }
+
+        const result = await response.json();
+        const aiMessage = { role: 'assistant', content: result.candidates[0].content.parts[0].text.replace(/\*\*/g, '') };
+        setChatHistory(prev => [...prev, aiMessage]);
+    } catch (error) {
+        console.error("Error in chat:", error);
+        const errorMessage = { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' };
+        setChatHistory(prev => [...prev, errorMessage]);
+    } finally {
+        setIsChatting(false);
+    }
+};
+
+// Add this useEffect to scroll the chat
+useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollTop = chatEndRef.current.scrollHeight;
+    }
+}, [chatHistory]);
             }
             setIsParsing(true);
             setMessage('Parsing transactions... Please wait.');
