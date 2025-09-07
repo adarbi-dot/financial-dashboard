@@ -562,63 +562,78 @@
     // or the FinancialDashboard based on the user's authentication state.
     // =================================================================================
     const App = () => {
-        const [user, setUser] = useState(null);
-        const [auth, setAuth] = useState(null);
-        const [db, setDb] = useState(null);
-        const [isInitializing, setIsInitializing] = useState(true);
+    const [user, setUser] = useState(null);
+    const [auth, setAuth] = useState(null);
+    const [db, setDb] = useState(null);
+    const [isInitializing, setIsInitializing] = useState(true);
+    const [firebaseError, setFirebaseError] = useState(null);
 
-        useEffect(() => {
-            // This is where you would paste your Firebase config object
-            const firebaseConfig = {
+    useEffect(() => {
+        const firebaseConfig = {
           apiKey: "AIzaSyDtsfD6mUIkrW2Vi_S4MkOeXj9ABxSj0hw",
           authDomain: "financial-wellness-dashboard.firebaseapp.com",
           projectId: "financial-wellness-dashboard",
-          storageBucket: "financial-wellness-dashboard.appspot.com", // Corrected this for you
+          storageBucket: "financial-wellness-dashboard.appspot.com",
           messagingSenderId: "599378817258",
           appId: "1:599378817258:web:95841307d6960986f36793",
           measurementId: "G-4TZ4BKTP9B"
         };
-        // --- END OF REPLACEMENT ---
 
-            try {
-                const app = window.firebase.initializeApp(firebaseConfig);
-                const authInstance = window.firebase.getAuth(app);
-                const dbInstance = window.firebase.getFirestore(app);
-                setAuth(authInstance);
-                setDb(dbInstance);
+        try {
+            const app = window.firebase.initializeApp(firebaseConfig);
+            const authInstance = window.firebase.getAuth(app);
+            const dbInstance = window.firebase.getFirestore(app);
+            
+            // Set the auth and db objects into state
+            setAuth(authInstance);
+            setDb(dbInstance);
 
-                const unsubscribe = window.firebase.onAuthStateChanged(authInstance, (currentUser) => {
-                    setUser(currentUser);
-                    setIsInitializing(false);
-                });
-
-                return () => unsubscribe();
-            } catch (error) {
-                console.error("Error initializing Firebase:", error);
-                // You could show a full-page error message here
+            // Set up the listener for login/logout state changes
+            const unsubscribe = window.firebase.onAuthStateChanged(authInstance, (currentUser) => {
+                setUser(currentUser);
+                // We are done initializing only AFTER the first auth state check
                 setIsInitializing(false);
-            }
-        }, []);
+            });
 
-        if (isInitializing) {
-            return (
-                <div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400">
-                    <Loader2 className="w-10 h-10 animate-spin mr-3"/>
-                    <p>Initializing App...</p>
-                </div>
-            );
+            return () => unsubscribe();
+        } catch (error) {
+            console.error("FATAL: Error initializing Firebase:", error);
+            setFirebaseError("Could not connect to Firebase. Please check the configuration.");
+            setIsInitializing(false);
         }
+    }, []);
 
+    // While the app is connecting to Firebase and checking the auth state, show a loader.
+    if (isInitializing) {
         return (
-            <>
-                {user ? (
-                    <FinancialDashboard user={user} db={db} auth={auth} />
-                ) : (
-                    <LoginPage auth={auth} />
-                )}
-            </>
+            <div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400">
+                <Loader2 className="w-10 h-10 animate-spin mr-3"/>
+                <p>Connecting to services...</p>
+            </div>
         );
-    };
+    }
+
+    // If Firebase failed to initialize, show an error message.
+    if (firebaseError) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400">
+                <p>{firebaseError}</p>
+            </div>
+        );
+    }
+
+    // Once initialized, decide which page to show.
+    // We can now be certain that `auth` is a valid object.
+    return (
+        <>
+            {user ? (
+                <FinancialDashboard user={user} db={db} auth={auth} />
+            ) : (
+                <LoginPage auth={auth} />
+            )}
+        </>
+    );
+};
 
     // Render the final App component to the root element
     const root = ReactDOM.createRoot(document.getElementById('root'));
