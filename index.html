@@ -109,8 +109,91 @@
     </div>
   );
 };    
-    const AiMortgageInsights = () => { return <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1"><h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Sparkles className="w-7 h-7 mr-2" />AI Insights</h2></div>; };
-    const SpendingChart = ({ transactions, baseCurrency }) => {
+    const AiMortgageInsights = () => {
+      const AiMortgageInsights = () => {
+    const [statementText, setStatementText] = useState('');
+    const [insights, setInsights] = useState(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [error, setError] = useState('');
+
+    const handleAnalyzeStatement = async () => {
+        if (!statementText.trim()) {
+            setError('Please paste your mortgage statement details.');
+            return;
+        }
+        setError('');
+        setInsights(null);
+        setIsAnalyzing(true);
+        try {
+            // IMPORTANT: Replace "YOUR_GOOGLE_AI_API_KEY" with your actual API key
+            const apiKey = "YOUR_GOOGLE_AI_API_KEY"; 
+            if (apiKey === "YOUR_GOOGLE_AI_API_KEY") {
+                setError("API Key not configured. Please replace the placeholder in the code.");
+                setIsAnalyzing(false);
+                return;
+            }
+
+            const prompt = `You are a professional financial advisor specializing in mortgages. Analyze the following mortgage statement data. Provide a detailed, actionable plan for the user to pay off their mortgage early, including specific strategies like the snowball or avalanche method, and explain how a small extra payment can make a big difference over time. Use a clear, encouraging tone.
+            
+            Mortgage Statement Data:
+            ${statementText}
+            `;
+
+            const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload )
+            });
+
+            if (!response.ok) {
+                throw new Error(`API request failed with status ${response.status}`);
+            }
+            
+            const result = await response.json();
+            const aiResponse = result.candidates[0].content.parts[0].text;
+            setInsights(aiResponse.replace(/\*\*/g, '')); // Clean up markdown formatting
+        } catch (error) {
+            console.error("Error analyzing statement:", error);
+            setError("An error occurred while fetching insights. Please try again later.");
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
+
+    return (
+        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1">
+            <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Sparkles className="w-7 h-7 mr-2" />AI Mortgage Insights</h2>
+            <div className="space-y-4">
+                <p className="text-sm text-slate-400">Paste your mortgage statement details below, and our AI will provide personalized payoff strategies.</p>
+                <textarea 
+                    value={statementText}
+                    onChange={(e) => setStatementText(e.target.value)}
+                    rows="6"
+                    placeholder="Paste your mortgage principal, interest rate, and term here..."
+                    className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                ></textarea>
+                <button 
+                    onClick={handleAnalyzeStatement}
+                    disabled={isAnalyzing}
+                    className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isAnalyzing ? 'bg-blue-800 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                >
+                    {isAnalyzing ? ( <Loader2 className="animate-spin inline-block mr-2" /> ) : ( 'Get Mortgage Insights' )}
+                </button>
+                {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+                {insights && (
+                    <div className="mt-4 p-4 bg-slate-700 rounded-lg space-y-2">
+                        <p className="text-green-400 font-semibold">Your Personalized Plan:</p>
+                        <p className="whitespace-pre-wrap text-slate-300">{insights}</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};    
+      const SpendingChart = ({ transactions, baseCurrency }) => {
         const canvasRef = useRef(null);
         const chartRef = useRef(null);
         const categorySpending = useMemo(() => {
