@@ -48,7 +48,67 @@
     };
     const currencies = [ { code: 'USD', symbol: '$' }, { code: 'AED', symbol: 'د.إ' }, { code: 'EUR', symbol: '€' }, { code: 'GBP', symbol: '£' } ];
     const getSymbol = (code ) => currencies.find(c => c.code === code)?.symbol || '';
-    const MortgageCalculator = () => { return <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1"><h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Landmark className="w-7 h-7 mr-2" />Mortgage Calculator</h2></div>; };
+    const MortgageCalculator = () => {
+      const [principal, setPrincipal] = useState(250000);
+  const [interestRate, setInterestRate] = useState(4.5);
+  const [loanTerm, setLoanTerm] = useState(30);
+  const [extraPayment, setExtraPayment] = useState(0);
+  const [results, setResults] = useState(null);
+
+  const calculateMortgage = () => {
+    const P = parseFloat(principal);
+    const R = parseFloat(interestRate) / 100 / 12;
+    const N = parseFloat(loanTerm) * 12;
+    const extraPmt = parseFloat(extraPayment) || 0;
+    
+    if (P <= 0 || R <= 0 || N <= 0) { setResults(null); return; }
+
+    const monthlyPayment = P * (R * Math.pow(1 + R, N)) / (Math.pow(1 + R, N) - 1);
+    
+    let totalInterestPaid = (monthlyPayment * N) - P;
+    
+    let totalInterestPaidWithExtra = 0;
+    let termWithExtra = 0;
+    let tempPrincipalExtra = P;
+    if (extraPmt > 0) {
+        let tempMonthsExtra = 0;
+        while (tempPrincipalExtra > 0) {
+          const interestPortion = tempPrincipalExtra * R;
+          const principalPortion = (monthlyPayment + extraPmt) - interestPortion;
+          tempPrincipalExtra -= principalPortion;
+          totalInterestPaidWithExtra += interestPortion;
+          tempMonthsExtra++;
+          if (tempMonthsExtra > N * 2) break; // Safety break
+        }
+        termWithExtra = tempMonthsExtra;
+    } else {
+        totalInterestPaidWithExtra = totalInterestPaid;
+        termWithExtra = N;
+    }
+
+    setResults({
+      monthlyPayment: monthlyPayment.toFixed(2),
+      totalInterestPaid: totalInterestPaid.toFixed(2),
+      totalInterestSaved: (totalInterestPaid - totalInterestPaidWithExtra).toFixed(2),
+      totalMonthsSaved: N - termWithExtra,
+      termWithExtra: Math.ceil(termWithExtra / 12)
+    });
+  };
+
+  return (
+    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1">
+      <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Landmark className="w-7 h-7 mr-2" />Mortgage Payoff Calculator</h2>
+      <div className="space-y-4">
+        <div><label className="block text-sm font-medium mb-1 text-slate-400">Principal ($)</label><input type="number" value={principal} onChange={(e) => setPrincipal(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
+        <div><label className="block text-sm font-medium mb-1 text-slate-400">Interest Rate (%)</label><input type="number" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} step="0.01" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
+        <div><label className="block text-sm font-medium mb-1 text-slate-400">Loan Term (Years)</label><input type="number" value={loanTerm} onChange={(e) => setLoanTerm(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
+        <div><label className="block text-sm font-medium mb-1 text-slate-400">Extra Monthly Payment ($)</label><input type="number" value={extraPayment} onChange={(e) => setExtraPayment(e.target.value)} step="0.01" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
+        <button onClick={calculateMortgage} className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-lg">Calculate Mortgage</button>
+        {results && (<div className="mt-4 p-4 bg-slate-700 rounded-lg space-y-2"><p className="font-semibold text-green-400">Monthly Payment: ${results.monthlyPayment}</p><p className="text-sm text-slate-300">Total Interest (without extra): ${results.totalInterestPaid}</p><p className="text-sm text-slate-300">New Term: {results.termWithExtra} years</p><p className="font-bold text-lg text-green-300">Total Interest Saved: ${results.totalInterestSaved}</p><p className="font-bold text-lg text-green-300">Months Saved: {results.totalMonthsSaved}</p></div>)}
+      </div>
+    </div>
+  );
+};    
     const AiMortgageInsights = () => { return <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1"><h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Sparkles className="w-7 h-7 mr-2" />AI Insights</h2></div>; };
     const SpendingChart = ({ transactions, baseCurrency }) => {
         const canvasRef = useRef(null);
