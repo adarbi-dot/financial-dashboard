@@ -17,205 +17,55 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- Firebase JS SDK -->
   <script type="module">
-    // --- UPDATED FIREBASE IMPORTS ---
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { 
-        getAuth, 
-        onAuthStateChanged, 
-        createUserWithEmailAndPassword, 
-        signInWithEmailAndPassword,
-        signOut
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { 
-        getFirestore, 
-        collection, 
-        onSnapshot, 
-        addDoc, 
-        doc, 
-        deleteDoc, 
-        setDoc, 
-        query, 
-        orderBy, 
-        updateDoc 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // Assign all necessary functions to the window object for easy access in the app
-    window.firebase = { 
-        initializeApp, 
-        getAuth, 
-        onAuthStateChanged, 
-        createUserWithEmailAndPassword,
-        signInWithEmailAndPassword,
-        signOut,
-        getFirestore, 
-        collection, 
-        onSnapshot, 
-        addDoc, 
-        doc, 
-        deleteDoc, 
-        setDoc, 
-        query, 
-        orderBy, 
-        updateDoc 
-    };
+    import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    window.firebase = { initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, updateDoc };
   </script>
   <style>
-    body {
-        font-family: 'Inter', sans-serif;
-    }
-    .chat-bubble {
-        animation: fadeIn 0.3s ease-in-out;
-    }
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(5px ); }
-        to { opacity: 1; transform: translateY(0); }
-    }
+    body { font-family: 'Inter', sans-serif; }
+    .chat-bubble { animation: fadeIn 0.3s ease-in-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px ); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body class="bg-slate-900 font-inter text-gray-200">
   <div id="root"></div>
 
-  <!-- Main React Application -->
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    // --- SVG ICON COMPONENTS (No changes needed here) ---
+    // --- SVG ICON COMPONENTS ---
     const DollarSign = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>;
-    const ChevronRight = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 18l6-6-6-6"></path></svg>;
-    const UploadCloud = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 1 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="M16 16l-4-4-4 4"></path></svg>;
     const Loader2 = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>;
     const Trash2 = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>;
-    const Sparkles = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 1v4"></path><path d="M17.65 6.35l-2.79 2.79"></path><path d="M21 12h-4"></path><path d="M17.65 17.65l-2.79-2.79"></path><path d="M12 21v-4"></path><path d="M6.35 17.65l2.79-2.79"></path><path d="M3 12h4"></path><path d="M6.35 6.35l2.79 2.79"></path></svg>;
-    const Landmark = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="3" y1="22" x2="21" y2="22"></line><path d="M6 18v-8"></path><path d="M10 18v-4"></path><path d="M14 18v-6"></path><path d="M18 18V2"></path><path d="M6 10l-4 4v7h20v-7l-4-4"></path></svg>;
     const Wallet = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3"></path><path d="M16 17a2 2 0 0 0 0-4h-4a2 2 0 0 0 0 4"></path></svg>;
     const BarChart = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>;
     const Edit = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
-    const MessageCircle = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M7.9 20A9.32 9.32 0 0 1 4 16c0-2.8.5-5.6 2-8 1.5-2.4 3.5-4.4 6-6 2.5 1.6 4.5 3.6 6 6s2 5.2 2 8a9.32 9.32 0 0 1-3.9 4"></path><path d="M12 12l-2-2"></path><path d="M16 16l-2-2"></path></svg>;
-    const FileText = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><line x1="10" y1="9" x2="8" y2="9"></line></svg>;
-    const Bot = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 8a4 4 0 0 0-4 4v2a2 2 0 0 1 2 2h4a2 2 0 0 1 2-2v-2a4 4 0 0 0-4-4z"></path><path d="M16 16s-1.5-2-4-2-4 2-4 2"></path><path d="M21.2 8.4c-1.3-3.2-4.1-5.6-7.5-6.1A6.6 6.6 0 0 0 12 2.1c-1.4 0-2.8.4-4.1 1.2-3.4.5-6.2 2.9-7.5 6.1-1.3 3.2-.8 6.9 1.2 9.7s5.1 4.7 9.1 4.7c4 0 7.1-2 9.1-4.7 2-2.8 2.5-6.5 1.2-9.7z"></path></svg>;
-    const User = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>;
-    const Send = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>;
-    const Download = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>;
     const LogOut = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
 
-    // --- GLOBAL HELPER DATA (No changes needed here ) ---
-    const exchangeRates = { 'USD': 1, 'AED': 3.67, 'EUR': 1.08, 'GBP': 1.25, 'JPY': 0.0065, 'CAD': 0.73, 'AUD': 0.67, 'CNY': 0.14, 'SAR': 0.27 };
+    // --- GLOBAL HELPER DATA ---
     const categories = {
       'Personal Expense': ['Groceries', 'Rent', 'Utilities', 'Entertainment', 'Transportation', 'Subscriptions', 'Other Personal'],
       'Business Expense': ['Software', 'Freelance Tools', 'Co-working Space', 'Marketing', 'Education', 'Other Business'],
       'Income': ['Client Work', 'Bonus', 'Tips', 'Salary', 'Other Income']
     };
-    const currencies = [
-      { code: 'USD', symbol: '$' }, { code: 'AED', symbol: 'د.إ' }, { code: 'EUR', symbol: '€' },
-      { code: 'GBP', symbol: '£' }, { code: 'JPY', symbol: '¥' }, { code: 'CAD', symbol: 'C$' },
-      { code: 'AUD', symbol: 'A$' }, { code: 'CNY', symbol: '¥' }, { code: 'SAR', symbol: 'ر.س' }
-    ];
-    const getSymbol = (code) => currencies.find(c => c.code === code)?.symbol || '';
+    const currencies = [ { code: 'USD', symbol: '$' }, { code: 'AED', symbol: 'د.إ' }, { code: 'EUR', symbol: '€' }, { code: 'GBP', symbol: '£' } ];
+    const getSymbol = (code ) => currencies.find(c => c.code === code)?.symbol || '';
 
-    // --- CHILD COMPONENTS (No changes needed here) ---
-    const MortgageCalculator = () => {
-      const [principal, setPrincipal] = useState(250000);
-      const [interestRate, setInterestRate] = useState(4.5);
-      const [loanTerm, setLoanTerm] = useState(30);
-      const [extraPayment, setExtraPayment] = useState(0);
-      const [results, setResults] = useState(null);
-
-      const calculateMortgage = () => {
-        const P = parseFloat(principal);
-        const R = parseFloat(interestRate) / 100 / 12;
-        const N = parseFloat(loanTerm) * 12;
-        const extraPmt = parseFloat(extraPayment) || 0;
-        
-        if (P <= 0 || R <= 0 || N <= 0) { setResults(null); return; }
-
-        const monthlyPayment = P * (R * Math.pow(1 + R, N)) / (Math.pow(1 + R, N) - 1);
-        
-        let totalInterestPaid = (monthlyPayment * N) - P;
-        
-        let totalInterestPaidWithExtra = 0;
-        let termWithExtra = 0;
-        let tempPrincipalExtra = P;
-        if (extraPmt > 0) {
-            let tempMonthsExtra = 0;
-            while (tempPrincipalExtra > 0) {
-              const interestPortion = tempPrincipalExtra * R;
-              const principalPortion = (monthlyPayment + extraPmt) - interestPortion;
-              tempPrincipalExtra -= principalPortion;
-              totalInterestPaidWithExtra += interestPortion;
-              tempMonthsExtra++;
-              if (tempMonthsExtra > N * 2) break; // Safety break
-            }
-            termWithExtra = tempMonthsExtra;
-        } else {
-            totalInterestPaidWithExtra = totalInterestPaid;
-            termWithExtra = N;
-        }
-
-        setResults({
-          monthlyPayment: monthlyPayment.toFixed(2),
-          totalInterestPaid: totalInterestPaid.toFixed(2),
-          totalInterestSaved: (totalInterestPaid - totalInterestPaidWithExtra).toFixed(2),
-          totalMonthsSaved: N - termWithExtra,
-          termWithExtra: Math.ceil(termWithExtra / 12)
-        });
-      };
-
-      return (
-        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1">
-          <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Landmark className="w-7 h-7 mr-2" />Mortgage Payoff Calculator</h2>
-          <div className="space-y-4">
-            <div><label className="block text-sm font-medium mb-1 text-slate-400">Principal ($)</label><input type="number" value={principal} onChange={(e) => setPrincipal(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-            <div><label className="block text-sm font-medium mb-1 text-slate-400">Interest Rate (%)</label><input type="number" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} step="0.01" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-            <div><label className="block text-sm font-medium mb-1 text-slate-400">Loan Term (Years)</label><input type="number" value={loanTerm} onChange={(e) => setLoanTerm(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-            <div><label className="block text-sm font-medium mb-1 text-slate-400">Extra Monthly Payment ($)</label><input type="number" value={extraPayment} onChange={(e) => setExtraPayment(e.target.value)} step="0.01" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-            <button onClick={calculateMortgage} className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-lg">Calculate Mortgage</button>
-            {results && (<div className="mt-4 p-4 bg-slate-700 rounded-lg space-y-2"><p className="font-semibold text-green-400">Monthly Payment: ${results.monthlyPayment}</p><p className="text-sm text-slate-300">Total Interest (without extra): ${results.totalInterestPaid}</p><p className="text-sm text-slate-300">New Term: {results.termWithExtra} years</p><p className="font-bold text-lg text-green-300">Total Interest Saved: ${results.totalInterestSaved}</p><p className="font-bold text-lg text-green-300">Months Saved: {results.totalMonthsSaved}</p></div>)}
-          </div>
-        </div>
-      );
-    };
-    const AiMortgageInsights = () => {
-        const [statementText, setStatementText] = useState('');
-        const [insights, setInsights] = useState(null);
-        const [isAnalyzing, setIsAnalyzing] = useState(false);
-        const handleAnalyzeStatement = async () => {
-            if (!statementText.trim()) { alert('Please paste your mortgage statement details.'); return; }
-            setIsAnalyzing(true);
-            try {
-                const prompt = `You are a professional financial advisor specializing in mortgages. Analyze the following mortgage statement data. Provide a detailed, actionable plan for the user to pay off their mortgage early, including specific strategies like the snowball or avalanche method, and explain how a small extra payment can make a big difference over time. Use a clear, encouraging tone. Mortgage Statement Data: ${statementText}`;
-                const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=`; // Note: You need to manage your API key securely
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
-                const result = await response.json();
-                const aiResponse = result.candidates[0].content.parts[0].text;
-                setInsights(aiResponse.replace(/\*\*/g, ''));
-            } catch (error) { console.error("Error analyzing statement:", error); setInsights("An error occurred. Please try again."); } finally { setIsAnalyzing(false); }
-        };
-        return (
-            <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1">
-                <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Sparkles className="w-7 h-7 mr-2" />AI Mortgage Insights</h2>
-                <div className="space-y-4">
-                    <p className="text-sm text-slate-400">Paste your mortgage statement details below for personalized payoff strategies.</p>
-                    <textarea value={statementText} onChange={(e) => setStatementText(e.target.value)} rows="6" placeholder="Paste your mortgage principal, interest rate, and term here..." className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    <button onClick={handleAnalyzeStatement} disabled={isAnalyzing} className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isAnalyzing ? 'bg-blue-800 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>{isAnalyzing ? <><Loader2 className="animate-spin inline-block mr-2" /> Analyzing...</> : 'Get Mortgage Insights'}</button>
-                    {insights && (<div className="mt-4 p-4 bg-slate-700 rounded-lg space-y-2"><p className="text-green-400 font-semibold">Your Personalized Plan:</p><p className="whitespace-pre-wrap text-slate-300">{insights}</p></div>)}
-                </div>
-            </div>
-        );
-    };
-    const SpendingChart = ({ transactions, baseCurrency, exchangeRates, getSymbol }) => {
+    // --- CHILD COMPONENTS ---
+    const SpendingChart = ({ transactions, baseCurrency }) => {
         const canvasRef = useRef(null);
         const chartRef = useRef(null);
         const categorySpending = useMemo(() => {
             const spending = {};
             transactions.forEach(t => {
                 if (t.type !== 'Income') {
-                    const convertedAmount = t.amount * (exchangeRates[t.currency] / exchangeRates[baseCurrency]);
-                    spending[t.category] = (spending[t.category] || 0) + convertedAmount;
+                    spending[t.category] = (spending[t.category] || 0) + t.amount; // Simplified for this example
                 }
             });
             return spending;
-        }, [transactions, baseCurrency, exchangeRates]);
+        }, [transactions]);
+
         useEffect(() => {
             if (!canvasRef.current) return;
             const ctx = canvasRef.current.getContext('2d');
@@ -225,11 +75,12 @@
                 type: 'pie',
                 data: {
                     labels: Object.keys(categorySpending),
-                    datasets: [{ data: Object.values(categorySpending), backgroundColor: ['#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981'], hoverBackgroundColor: ['#22d3ee', '#818cf8', '#c084fc', '#f472b6', '#fb7185', '#f87171', '#fb923c', '#facc15', '#4ade80', '#34d399'] }]
+                    datasets: [{ data: Object.values(categorySpending), backgroundColor: ['#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981'] }]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#94a3b8' } }, tooltip: { callbacks: { label: (context) => `${context.label || ''}: ${getSymbol(baseCurrency)}${context.parsed.toFixed(2)}` } } } }
             });
         }, [categorySpending, baseCurrency]);
+
         return (
             <div className="bg-slate-800 rounded-2xl p-6 shadow-xl flex-grow flex flex-col items-center">
                 <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><BarChart className="w-7 h-7 mr-2"/>Spending Breakdown</h2>
@@ -237,19 +88,7 @@
             </div>
         );
     };
-    const handleDownloadChat = (chatHistory) => {
-        const chatString = chatHistory.map(msg => `${msg.role.toUpperCase()}: ${msg.content}`).join('\n\n');
-        const blob = new Blob([chatString], { type: 'text/plain' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'financial_coach_chat.txt';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    };
 
-    // =================================================================================
-    // --- NEW AUTHENTICATION COMPONENT ---
-    // This component handles both Login and Sign Up.
-    // =================================================================================
     const LoginPage = ({ auth }) => {
         const [isLogin, setIsLogin] = useState(true);
         const [email, setEmail] = useState('');
@@ -282,8 +121,7 @@
                         <h1 className="text-4xl font-extrabold text-white">Financial Dashboard</h1>
                         <p className="text-slate-400 mt-2">{isLogin ? 'Welcome back, log in to continue' : 'Create an account to get started'}</p>
                     </div>
-                    <form onSubmit={handleAuth
-                       <form onSubmit={handleAuthAction} className="space-y-6">
+                    <form onSubmit={handleAuthAction} className="space-y-6">
                         <div>
                             <label className="block text-sm font-medium mb-1 text-slate-400">Email Address</label>
                             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com" />
@@ -310,76 +148,26 @@
         );
     };
 
-
-    // =================================================================================
-    // --- NEW FINANCIAL DASHBOARD COMPONENT ---
-    // This component contains all the logic and JSX from your original App component.
-    // It only renders when a user is logged in.
-    // =================================================================================
     const FinancialDashboard = ({ user, db, auth }) => {
-        // All state from your original App component is moved here
         const [transactions, setTransactions] = useState([]);
-        const [goals, setGoals] = useState([]);
-        const [budgets, setBudgets] = useState({});
         const [date, setDate] = useState('');
         const [description, setDescription] = useState('');
         const [amount, setAmount] = useState('');
         const [type, setType] = useState('Personal Expense');
         const [category, setCategory] = useState(categories['Personal Expense'][0]);
-        const [currency, setCurrency] = useState('AED');
+        const [currency, setCurrency] = useState('USD');
         const [editingTransactionId, setEditingTransactionId] = useState(null);
         const [message, setMessage] = useState('');
-        const [pastedText, setPastedText] = useState('');
-        const [isParsing, setIsParsing] = useState(false);
-        const chatEndRef = useRef(null);
-        const [chatHistory, setChatHistory] = useState([]);
-        const [chatInput, setChatInput] = useState('');
-        const [isChatting, setIsChatting] = useState(false);
-        const [newGoalName, setNewGoalName] = useState('');
-        const [newGoalTarget, setNewGoalTarget] = useState('');
-        const [budgetInput, setBudgetInput] = useState('');
-        const [selectedBudgetCategory, setSelectedBudgetCategory] = useState('Groceries');
-        const [baseCurrency, setBaseCurrency] = useState('AED');
-        const [filterType, setFilterType] = useState('All');
-        const [sortBy, setSortBy] = useState('date');
-        const [sortDirection, setSortDirection] = useState('desc');
-        const [startDate, setStartDate] = useState('');
-        const [endDate, setEndDate] = useState('');
-
-        // The key change: use `user.uid` in your database paths for security
         const userId = user.uid;
-
-        // --- UPDATED DATABASE LOGIC ---
-        // This logic is now user-specific. You must apply this `userId` pattern
-        // to EVERY place you read from or write to the database.
 
         useEffect(() => {
             if (!db || !userId) return;
-            const listeners = [];
-            
-            // Transactions listener
             const transactionsRef = window.firebase.collection(db, `users/${userId}/transactions`);
-            const qTransactions = window.firebase.query(transactionsRef, orderBy('date', 'desc'));
-            listeners.push(window.firebase.onSnapshot(qTransactions, (snapshot) => {
+            const q = window.firebase.query(transactionsRef, orderBy('date', 'desc'));
+            const unsubscribe = window.firebase.onSnapshot(q, (snapshot) => {
                 setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            }, (error) => console.error("Error fetching transactions:", error)));
-
-            // Goals listener
-            const goalsRef = window.firebase.collection(db, `users/${userId}/goals`);
-            listeners.push(window.firebase.onSnapshot(goalsRef, (snapshot) => {
-                setGoals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            }, (error) => console.error("Error fetching goals:", error)));
-
-            // Budgets listener
-            const budgetsRef = window.firebase.collection(db, `users/${userId}/budgets`);
-            listeners.push(window.firebase.onSnapshot(budgetsRef, (snapshot) => {
-                const fetchedBudgets = {};
-                snapshot.docs.forEach(doc => { fetchedBudgets[doc.id] = doc.data().amount; });
-                setBudgets(fetchedBudgets);
-            }, (error) => console.error("Error fetching budgets:", error)));
-
-            // Cleanup all listeners on component unmount
-            return () => listeners.forEach(unsubscribe => unsubscribe());
+            }, (error) => console.error("Error fetching transactions:", error));
+            return () => unsubscribe();
         }, [db, userId]);
 
         const handleAddOrUpdateTransaction = async (e) => {
@@ -417,77 +205,21 @@
             setCurrency(transaction.currency);
         };
 
-        const handleAddGoal = async (e) => {
-            e.preventDefault();
-            if (!newGoalName.trim() || !newGoalTarget || parseFloat(newGoalTarget) <= 0) { setMessage('Please enter a valid goal.'); return; }
-            const newGoal = { name: newGoalName, targetAmount: parseFloat(newGoalTarget), currentAmount: 0, createdAt: new Date().toISOString() };
-            try {
-                await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/goals`), newGoal);
-                setMessage('Goal added!');
-                setNewGoalName(''); setNewGoalTarget('');
-            } catch (err) { console.error(err); setMessage('Failed to add goal.'); }
-        };
-
-        const handleDeleteGoal = async (id) => {
-            try {
-                await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/goals`, id));
-                setMessage("Goal deleted.");
-            } catch (err) { console.error(err); setMessage("Failed to delete goal."); }
-        };
-
-        const handleAddBudget = async (e) => {
-            e.preventDefault();
-            if (!selectedBudgetCategory || !budgetInput || parseFloat(budgetInput) <= 0) { setMessage('Please enter a valid budget.'); return; }
-            try {
-                await window.firebase.setDoc(window.firebase.doc(db, `users/${userId}/budgets`, selectedBudgetCategory), { amount: parseFloat(budgetInput) });
-                setMessage(`Budget for ${selectedBudgetCategory} set!`);
-                setBudgetInput('');
-            } catch (err) { console.error(err); setMessage('Failed to set budget.'); }
-        };
-
         const handleSignOut = async () => {
-            try {
-                await window.firebase.signOut(auth);
-            } catch (error) {
-                console.error("Error signing out:", error);
-            }
+            try { await window.firebase.signOut(auth); } catch (error) { console.error("Error signing out:", error); }
         };
 
-        // --- All other helper functions and calculations remain the same ---
-        const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-        const filteredAndSortedTransactions = useMemo(() => {
-            return transactions
-                .filter(t => {
-                    const transactionDate = new Date(t.date);
-                    const start = startDate ? new Date(startDate) : null;
-                    const end = endDate ? new Date(endDate) : null;
-                    if (filterType !== 'All' && t.type !== filterType) return false;
-                    if (start && transactionDate < start) return false;
-                    if (end && transactionDate > end) return false;
-                    return true;
-                })
-                .sort((a, b) => {
-                    const aValue = a[sortBy];
-                    const bValue = b[sortBy];
-                    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-                    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-                    return 0;
-                });
-        }, [transactions, filterType, startDate, endDate, sortBy, sortDirection]);
+        const formatDate = (dateString) => new Date(dateString).toLocaleDate-String('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+        
         const totals = useMemo(() => {
             let totalIncome = 0, totalExpense = 0;
-            const budgetProgress = {};
-            Object.keys(budgets).forEach(cat => { budgetProgress[cat] = { spent: 0, budget: budgets[cat] }; });
-            filteredAndSortedTransactions.forEach(t => {
-                const convertedAmount = t.amount * (exchangeRates[t.currency] / exchangeRates[baseCurrency]);
-                if (t.type === 'Income') { totalIncome += convertedAmount; } 
-                else { totalExpense += convertedAmount; if (budgetProgress[t.category]) { budgetProgress[t.category].spent += convertedAmount; } }
+            transactions.forEach(t => {
+                if (t.type === 'Income') { totalIncome += t.amount; } 
+                else { totalExpense += t.amount; }
             });
-            return { income: totalIncome.toFixed(2), expense: totalExpense.toFixed(2), net: (totalIncome - totalExpense).toFixed(2), budgetProgress };
-        }, [filteredAndSortedTransactions, budgets, baseCurrency]);
-        const getGoalsProgress = (goal) => ((Math.min(goal.currentAmount / goal.targetAmount, 1)) * 100).toFixed(0);
+            return { income: totalIncome.toFixed(2), expense: totalExpense.toFixed(2), net: (totalIncome - totalExpense).toFixed(2) };
+        }, [transactions]);
 
-        // --- JSX FOR THE DASHBOARD ---
         return (
             <div className="p-4 md:p-8 lg:p-12 space-y-8 bg-slate-900 min-h-screen text-gray-200">
                 <div className="flex justify-between items-center flex-wrap gap-4">
@@ -501,9 +233,9 @@
                 {message && (<div className="bg-blue-600 text-white p-4 rounded-lg shadow-md flex justify-between items-center"><button onClick={() => setMessage('')} className="ml-4 font-bold">&times;</button></div>)}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Income</h3><div className="flex items-center"><DollarSign className="w-8 h-8 text-green-400 mr-2"/><select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)} className="bg-slate-700 text-white p-2 rounded-lg text-sm">{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select></div></div><p className="text-4xl font-extrabold text-green-400">{getSymbol(baseCurrency)}{totals.income}</p></div>
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Expenses</h3><Wallet className="w-8 h-8 text-red-400"/></div><p className="text-4xl font-extrabold text-red-400">{getSymbol(baseCurrency)}{totals.expense}</p></div>
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Net Flow</h3><BarChart className="w-8 h-8 text-blue-400"/></div><p className="text-4xl font-extrabold text-blue-400">{getSymbol(baseCurrency)}{totals.net}</p></div>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Income</h3><DollarSign className="w-8 h-8 text-green-400"/></div><p className="text-4xl font-extrabold text-green-400">{getSymbol(currency)}{totals.income}</p></div>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Expenses</h3><Wallet className="w-8 h-8 text-red-400"/></div><p className="text-4xl font-extrabold text-red-400">{getSymbol(currency)}{totals.expense}</p></div>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Net Flow</h3><BarChart className="w-8 h-8 text-blue-400"/></div><p className="text-4xl font-extrabold text-blue-400">{getSymbol(currency)}{totals.net}</p></div>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -529,7 +261,7 @@
                                 <table className="min-w-full divide-y divide-slate-700">
                                     <thead className="bg-slate-700"><tr><th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">Date</th><th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">Description</th><th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">Type</th><th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">Amount</th><th className="py-3 px-3 text-center text-xs font-medium text-slate-400 uppercase">Actions</th></tr></thead>
                                     <tbody className="bg-slate-800 divide-y divide-slate-700">
-                                        {filteredAndSortedTransactions.length > 0 ? (filteredAndSortedTransactions.map(t => (
+                                        {transactions.length > 0 ? (transactions.map(t => (
                                             <tr key={t.id} className="hover:bg-slate-700"><td className="py-3 px-3 whitespace-nowrap">{formatDate(t.date)}</td><td className="py-3 px-3">{t.description}</td><td className={`py-3 px-3 font-bold ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>{t.type}</td><td className={`py-3 px-3 font-bold ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>{getSymbol(t.currency)}{t.amount.toFixed(2)}</td><td className="py-3 px-3 text-center"><div className="flex items-center justify-center gap-2"><button onClick={() => handleEditTransaction(t)} className="text-blue-400 hover:text-blue-500"><Edit className="w-5 h-5" /></button><button onClick={() => handleDeleteTransaction(t.id)} className="text-red-400 hover:text-red-500"><Trash2 className="w-5 h-5" /></button></div></td></tr>
                                         ))) : (<tr><td colSpan="5" className="py-6 text-center text-slate-400">No transactions yet.</td></tr>)}
                                     </tbody>
@@ -538,107 +270,79 @@
                         </div>
                     </div>
                     <div className="lg:col-span-1 space-y-8">
-                        <SpendingChart transactions={transactions} baseCurrency={baseCurrency} exchangeRates={exchangeRates} getSymbol={getSymbol} />
-                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
-                            <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Wallet className="w-7 h-7 mr-2"/>Savings Goals</h2>
-                            <div className="space-y-4">
-                                {goals.length > 0 ? (goals.map(goal => (<div key={goal.id} className="bg-slate-700 p-4 rounded-lg"><div className="flex justify-between items-center mb-1"><span className="font-semibold">{goal.name}</span><span className="text-xs text-slate-400">{getSymbol(baseCurrency)}{goal.currentAmount || 0} / {getSymbol(baseCurrency)}{goal.targetAmount}</span></div><div className="w-full bg-slate-600 rounded-full h-2.5"><div className="bg-teal-500 h-2.5 rounded-full" style={{ width: `${getGoalsProgress(goal)}%` }}></div></div></div>))) : (<p className="text-center text-slate-400">No goals added yet.</p>)}
-                                <form onSubmit={handleAddGoal} className="space-y-2"><input type="text" value={newGoalName} onChange={(e) => setNewGoalName(e.target.value)} placeholder="Goal Name" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/><input type="number" value={newGoalTarget} onChange={(e) => setNewGoalTarget(e.target.value)} step="0.01" placeholder="Target Amount" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/><button type="submit" className="w-full bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700">Add Goal</button></form>
-                            </div>
-                        </div>
+                        <SpendingChart transactions={transactions} baseCurrency={currency} />
                     </div>
-                </div>
-                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-                    <MortgageCalculator />
-                    <AiMortgageInsights />
                 </div>
             </div>
         );
     };
 
-    // =================================================================================
-    // --- NEW APP GATEKEEPER COMPONENT ---
-    // This is the main component that decides whether to show the LoginPage
-    // or the FinancialDashboard based on the user's authentication state.
-    // =================================================================================
     const App = () => {
-    const [user, setUser] = useState(null);
-    const [auth, setAuth] = useState(null);
-    const [db, setDb] = useState(null);
-    const [isInitializing, setIsInitializing] = useState(true);
-    const [firebaseError, setFirebaseError] = useState(null);
+        const [user, setUser] = useState(null);
+        const [auth, setAuth] = useState(null);
+        const [db, setDb] = useState(null);
+        const [isInitializing, setIsInitializing] = useState(true);
+        const [firebaseError, setFirebaseError] = useState(null);
 
-    useEffect(() => {
-        const firebaseConfig = {
-          apiKey: "AIzaSyDtsfD6mUIkrW2Vi_S4MkOeXj9ABxSj0hw",
-          authDomain: "financial-wellness-dashboard.firebaseapp.com",
-          projectId: "financial-wellness-dashboard",
-          storageBucket: "financial-wellness-dashboard.appspot.com",
-          messagingSenderId: "599378817258",
-          appId: "1:599378817258:web:95841307d6960986f36793",
-          measurementId: "G-4TZ4BKTP9B"
-        };
+        useEffect(() => {
+            const firebaseConfig = {
+              apiKey: "AIzaSyDtsfD6mUIkrW2Vi_S4MkOeXj9ABxSj0hw",
+              authDomain: "financial-wellness-dashboard.firebaseapp.com",
+              projectId: "financial-wellness-dashboard",
+              storageBucket: "financial-wellness-dashboard.appspot.com",
+              messagingSenderId: "599378817258",
+              appId: "1:599378817258:web:95841307d6960986f36793",
+              measurementId: "G-4TZ4BKTP9B"
+            };
 
-        try {
-            const app = window.firebase.initializeApp(firebaseConfig);
-            const authInstance = window.firebase.getAuth(app);
-            const dbInstance = window.firebase.getFirestore(app);
-            
-            // Set the auth and db objects into state
-            setAuth(authInstance);
-            setDb(dbInstance);
-
-            // Set up the listener for login/logout state changes
-            const unsubscribe = window.firebase.onAuthStateChanged(authInstance, (currentUser) => {
-                setUser(currentUser);
-                // We are done initializing only AFTER the first auth state check
+            try {
+                const app = window.firebase.initializeApp(firebaseConfig);
+                const authInstance = window.firebase.getAuth(app);
+                const dbInstance = window.firebase.getFirestore(app);
+                setAuth(authInstance);
+                setDb(dbInstance);
+                const unsubscribe = window.firebase.onAuthStateChanged(authInstance, (currentUser) => {
+                    setUser(currentUser);
+                    setIsInitializing(false);
+                });
+                return () => unsubscribe();
+            } catch (error) {
+                console.error("FATAL: Error initializing Firebase:", error);
+                setFirebaseError("Could not connect to Firebase. Please check the configuration.");
                 setIsInitializing(false);
-            });
+            }
+        }, []);
 
-            return () => unsubscribe();
-        } catch (error) {
-            console.error("FATAL: Error initializing Firebase:", error);
-            setFirebaseError("Could not connect to Firebase. Please check the configuration.");
-            setIsInitializing(false);
+        if (isInitializing) {
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400">
+                    <Loader2 className="w-10 h-10 animate-spin mr-3"/>
+                    <p>Connecting to services...</p>
+                </div>
+            );
         }
-    }, []);
 
-    // While the app is connecting to Firebase and checking the auth state, show a loader.
-    if (isInitializing) {
+        if (firebaseError) {
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400">
+                    <p>{firebaseError}</p>
+                </div>
+            );
+        }
+
         return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400">
-                <Loader2 className="w-10 h-10 animate-spin mr-3"/>
-                <p>Connecting to services...</p>
-            </div>
+            <>
+                {user ? (
+                    <FinancialDashboard user={user} db={db} auth={auth} />
+                ) : (
+                    <LoginPage auth={auth} />
+                )}
+            </>
         );
-    }
+    };
 
-    // If Firebase failed to initialize, show an error message.
-    if (firebaseError) {
-        return (
-            <div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400">
-                <p>{firebaseError}</p>
-            </div>
-        );
-    }
-
-    // Once initialized, decide which page to show.
-    // We can now be certain that `auth` is a valid object.
-    return (
-        <>
-            {user ? (
-                <FinancialDashboard user={user} db={db} auth={auth} />
-            ) : (
-                <LoginPage auth={auth} />
-            )}
-        </>
-    );
-};
-
-    // Render the final App component to the root element
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
-
   </script>
 </body>
 </html>
