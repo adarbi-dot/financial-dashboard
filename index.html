@@ -447,6 +447,7 @@
         const [firebaseError, setFirebaseError] = useState(null);
 
         useEffect(() => {
+            // This is your Firebase configuration object
             const firebaseConfig = {
               apiKey: "AIzaSyDNuMIjTS1XK4AZNpXiPB0nThFXS3MhsQk",
               authDomain: "financial-wellness-dashboard.firebaseapp.com",
@@ -463,34 +464,53 @@
                 const dbInstance = window.firebase.getFirestore(app);
                 setAuth(authInstance);
                 setDb(dbInstance);
+
                 const unsubscribe = window.firebase.onAuthStateChanged(authInstance, (currentUser) => {
                     setUser(currentUser);
                     setIsInitializing(false);
                 });
+
+                // Cleanup subscription on unmount
                 return () => unsubscribe();
             } catch (error) {
                 console.error("FATAL: Error initializing Firebase:", error);
                 setFirebaseError("Could not connect to Firebase. Please check the configuration.");
                 setIsInitializing(false);
             }
-        }, []);
+        }, []); // Empty dependency array ensures this runs only once
 
         if (isInitializing) {
-            return (<div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400"><Loader2 className="w-10 h-10 animate-spin mr-3"/><p>Connecting to services...</p></div>);
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400">
+                    <Loader2 className="w-10 h-10 animate-spin mr-3"/>
+                    <p>Connecting to services...</p>
+                </div>
+            );
         }
 
         if (firebaseError) {
-            return (<div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400"><p>{firebaseError}</p></div>);
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400">
+                    <p>{firebaseError}</p>
+                </div>
+            );
         }
 
-        return (<> {user ? (<FinancialDashboard user={user} db={db} auth={auth} />) : (<LoginPage auth={auth} />)} </>);
+        return (
+            <>
+                {user ? (
+                    <FinancialDashboard user={user} db={db} auth={auth} />
+                ) : (
+                    <LoginPage auth={auth} />
+                )}
+            </>
+        );
     };
 
+    // Render the final App component to the root element
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
 
   </script>
 </body>
 </html>
-
-// --- END OF PART 4 ---
