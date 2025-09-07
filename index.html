@@ -4,18 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Financial Wellness Dashboard</title>
-  <!-- Tailwind CSS CDN for styling -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Inter font for a clean, modern look -->
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
-  <!-- React and ReactDOM CDNs -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <!-- Babel for transpiling JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Chart.js CDN for data visualization -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Firebase JS SDK -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -38,12 +32,15 @@
     const DollarSign = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>;
     const Loader2 = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>;
     const Trash2 = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>;
+    const Sparkles = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 1v4"></path><path d="M17.65 6.35l-2.79 2.79"></path><path d="M21 12h-4"></path><path d="M17.65 17.65l-2.79-2.79"></path><path d="M12 21v-4"></path><path d="M6.35 17.65l2.79-2.79"></path><path d="M3 12h4"></path><path d="M6.35 6.35l2.79 2.79"></path></svg>;
+    const Landmark = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="3" y1="22" x2="21" y2="22"></line><path d="M6 18v-8"></path><path d="M10 18v-4"></path><path d="M14 18v-6"></path><path d="M18 18V2"></path><path d="M6 10l-4 4v7h20v-7l-4-4"></path></svg>;
     const Wallet = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3"></path><path d="M16 17a2 2 0 0 0 0-4h-4a2 2 0 0 0 0 4"></path></svg>;
     const BarChart = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>;
     const Edit = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
     const LogOut = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
 
     // --- GLOBAL HELPER DATA ---
+    const exchangeRates = { 'USD': 1, 'AED': 3.67, 'EUR': 1.08, 'GBP': 1.25, 'JPY': 0.0065, 'CAD': 0.73, 'AUD': 0.67, 'CNY': 0.14, 'SAR': 0.27 };
     const categories = {
       'Personal Expense': ['Groceries', 'Rent', 'Utilities', 'Entertainment', 'Transportation', 'Subscriptions', 'Other Personal'],
       'Business Expense': ['Software', 'Freelance Tools', 'Co-working Space', 'Marketing', 'Education', 'Other Business'],
@@ -51,8 +48,8 @@
     };
     const currencies = [ { code: 'USD', symbol: '$' }, { code: 'AED', symbol: 'د.إ' }, { code: 'EUR', symbol: '€' }, { code: 'GBP', symbol: '£' } ];
     const getSymbol = (code ) => currencies.find(c => c.code === code)?.symbol || '';
-
-    // --- CHILD COMPONENTS ---
+    const MortgageCalculator = () => { return <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1"><h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Landmark className="w-7 h-7 mr-2" />Mortgage Calculator</h2></div>; };
+    const AiMortgageInsights = () => { return <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1"><h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Sparkles className="w-7 h-7 mr-2" />AI Insights</h2></div>; };
     const SpendingChart = ({ transactions, baseCurrency }) => {
         const canvasRef = useRef(null);
         const chartRef = useRef(null);
@@ -60,11 +57,12 @@
             const spending = {};
             transactions.forEach(t => {
                 if (t.type !== 'Income') {
-                    spending[t.category] = (spending[t.category] || 0) + t.amount; // Simplified for this example
+                    const convertedAmount = t.amount * (exchangeRates[t.currency] / exchangeRates[baseCurrency]);
+                    spending[t.category] = (spending[t.category] || 0) + convertedAmount;
                 }
             });
             return spending;
-        }, [transactions]);
+        }, [transactions, baseCurrency]);
 
         useEffect(() => {
             if (!canvasRef.current) return;
@@ -89,6 +87,7 @@
         );
     };
 
+    // --- AUTHENTICATION PAGE ---
     const LoginPage = ({ auth }) => {
         const [isLogin, setIsLogin] = useState(true);
         const [email, setEmail] = useState('');
@@ -110,7 +109,6 @@
                 if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') { setError('Invalid email or password.'); } 
                 else if (err.code === 'auth/email-already-in-use') { setError('An account already exists with this email. Please log in.'); } 
                 else { setError('An error occurred. Please try again.'); }
-                console.error("Firebase Auth Error:", err);
             } finally { setIsLoading(false); }
         };
 
@@ -122,34 +120,20 @@
                         <p className="text-slate-400 mt-2">{isLogin ? 'Welcome back, log in to continue' : 'Create an account to get started'}</p>
                     </div>
                     <form onSubmit={handleAuthAction} className="space-y-6">
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-slate-400">Email Address</label>
-                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium mb-1 text-slate-400">Password</label>
-                            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" />
-                        </div>
+                        <div><label className="block text-sm font-medium mb-1 text-slate-400">Email Address</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com" /></div>
+                        <div><label className="block text-sm font-medium mb-1 text-slate-400">Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" /></div>
                         {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-                        <div>
-                            <button type="submit" disabled={isLoading} className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isLoading ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                {isLoading ? <Loader2 className="animate-spin inline-block"/> : (isLogin ? 'Login' : 'Sign Up')}
-                            </button>
-                        </div>
+                        <div><button type="submit" disabled={isLoading} className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isLoading ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>{isLoading ? <Loader2 className="animate-spin inline-block"/> : (isLogin ? 'Login' : 'Sign Up')}</button></div>
                     </form>
-                    <p className="text-center text-sm text-slate-400">
-                        {isLogin ? "Don't have an account? " : "Already have an account? "}
-                        <button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="font-medium text-blue-400 hover:underline">
-                            {isLogin ? 'Sign Up' : 'Login'}
-                        </button>
-                    </p>
+                    <p className="text-center text-sm text-slate-400">{isLogin ? "Don't have an account? " : "Already have an account? "}<button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="font-medium text-blue-400 hover:underline">{isLogin ? 'Sign Up' : 'Login'}</button></p>
                 </div>
             </div>
         );
     };
-
     const FinancialDashboard = ({ user, db, auth }) => {
         const [transactions, setTransactions] = useState([]);
+        const [goals, setGoals] = useState([]);
+        const [budgets, setBudgets] = useState({});
         const [date, setDate] = useState('');
         const [description, setDescription] = useState('');
         const [amount, setAmount] = useState('');
@@ -158,125 +142,88 @@
         const [currency, setCurrency] = useState('USD');
         const [editingTransactionId, setEditingTransactionId] = useState(null);
         const [message, setMessage] = useState('');
+        const [newGoalName, setNewGoalName] = useState('');
+        const [newGoalTarget, setNewGoalTarget] = useState('');
+        const [budgetInput, setBudgetInput] = useState('');
+        const [selectedBudgetCategory, setSelectedBudgetCategory] = useState('Groceries');
+        const [baseCurrency, setBaseCurrency] = useState('USD');
         const userId = user.uid;
 
         useEffect(() => {
             if (!db || !userId) return;
+            const listeners = [];
+            
             const transactionsRef = window.firebase.collection(db, `users/${userId}/transactions`);
-            const q = window.firebase.query(transactionsRef, orderBy('date', 'desc'));
-            const unsubscribe = window.firebase.onSnapshot(q, (snapshot) => {
-                setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            }, (error) => console.error("Error fetching transactions:", error));
-            return () => unsubscribe();
+            const qTransactions = window.firebase.query(transactionsRef, window.firebase.orderBy('date', 'desc'));
+            listeners.push(window.firebase.onSnapshot(qTransactions, (snapshot) => { setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }, (error) => console.error("Error fetching transactions:", error)));
+
+            const goalsRef = window.firebase.collection(db, `users/${userId}/goals`);
+            listeners.push(window.firebase.onSnapshot(goalsRef, (snapshot) => { setGoals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }, (error) => console.error("Error fetching goals:", error)));
+
+            const budgetsRef = window.firebase.collection(db, `users/${userId}/budgets`);
+            listeners.push(window.firebase.onSnapshot(budgetsRef, (snapshot) => {
+                const fetchedBudgets = {};
+                snapshot.docs.forEach(doc => { fetchedBudgets[doc.id] = doc.data().amount; });
+                setBudgets(fetchedBudgets);
+            }, (error) => console.error("Error fetching budgets:", error)));
+
+            return () => listeners.forEach(unsubscribe => unsubscribe());
         }, [db, userId]);
 
-        const handleAddOrUpdateTransaction = async (e) => {
-            e.preventDefault();
-            if (!date || !description || !amount || parseFloat(amount) <= 0) { setMessage('Please fill out all fields.'); return; }
-            const transactionData = { date, description, amount: parseFloat(amount), type, category, currency };
-            try {
-                if (editingTransactionId) {
-                    const transactionRef = window.firebase.doc(db, `users/${userId}/transactions`, editingTransactionId);
-                    await window.firebase.updateDoc(transactionRef, transactionData);
-                    setMessage('Transaction updated!');
-                    setEditingTransactionId(null);
-                } else {
-                    await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/transactions`), transactionData);
-                    setMessage('Transaction added!');
-                }
-                setDate(''); setDescription(''); setAmount('');
-            } catch (err) { console.error(err); setMessage('Failed to save transaction.'); }
-        };
-
-        const handleDeleteTransaction = async (id) => {
-            try {
-                await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/transactions`, id));
-                setMessage("Transaction deleted.");
-            } catch (err) { console.error(err); setMessage("Failed to delete transaction."); }
-        };
-        
-        const handleEditTransaction = (transaction) => {
-            setEditingTransactionId(transaction.id);
-            setDate(transaction.date);
-            setDescription(transaction.description);
-            setAmount(transaction.amount);
-            setType(transaction.type);
-            setCategory(transaction.category);
-            setCurrency(transaction.currency);
-        };
-
-        const handleSignOut = async () => {
-            try { await window.firebase.signOut(auth); } catch (error) { console.error("Error signing out:", error); }
-        };
-
-        const formatDate = (dateString) => new Date(dateString).toLocaleDate-String('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-        
-        const totals = useMemo(() => {
-            let totalIncome = 0, totalExpense = 0;
-            transactions.forEach(t => {
-                if (t.type === 'Income') { totalIncome += t.amount; } 
-                else { totalExpense += t.amount; }
-            });
-            return { income: totalIncome.toFixed(2), expense: totalExpense.toFixed(2), net: (totalIncome - totalExpense).toFixed(2) };
-        }, [transactions]);
+        const handleAddOrUpdateTransaction = async (e) => { e.preventDefault(); if (!date || !description || !amount || parseFloat(amount) <= 0) { setMessage('Please fill out all fields.'); return; } const transactionData = { date, description, amount: parseFloat(amount), type, category, currency }; try { if (editingTransactionId) { await window.firebase.updateDoc(window.firebase.doc(db, `users/${userId}/transactions`, editingTransactionId), transactionData); setMessage('Transaction updated!'); setEditingTransactionId(null); } else { await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/transactions`), transactionData); setMessage('Transaction added!'); } setDate(''); setDescription(''); setAmount(''); } catch (err) { console.error(err); setMessage('Failed to save transaction.'); } };
+        const handleDeleteTransaction = async (id) => { try { await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/transactions`, id)); setMessage("Transaction deleted."); } catch (err) { console.error(err); setMessage("Failed to delete transaction."); } };
+        const handleEditTransaction = (t) => { setEditingTransactionId(t.id); setDate(t.date); setDescription(t.description); setAmount(t.amount); setType(t.type); setCategory(t.category); setCurrency(t.currency); };
+        const handleAddGoal = async (e) => { e.preventDefault(); if (!newGoalName.trim() || !newGoalTarget || parseFloat(newGoalTarget) <= 0) { setMessage('Please enter a valid goal.'); return; } try { await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/goals`), { name: newGoalName, targetAmount: parseFloat(newGoalTarget), currentAmount: 0 }); setMessage('Goal added!'); setNewGoalName(''); setNewGoalTarget(''); } catch (err) { console.error(err); setMessage('Failed to add goal.'); } };
+        const handleDeleteGoal = async (id) => { try { await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/goals`, id)); setMessage("Goal deleted."); } catch (err) { console.error(err); setMessage("Failed to delete goal."); } };
+        const handleAddBudget = async (e) => { e.preventDefault(); if (!selectedBudgetCategory || !budgetInput || parseFloat(budgetInput) <= 0) { setMessage('Please enter a valid budget.'); return; } try { await window.firebase.setDoc(window.firebase.doc(db, `users/${userId}/budgets`, selectedBudgetCategory), { amount: parseFloat(budgetInput) }); setMessage(`Budget for ${selectedBudgetCategory} set!`); setBudgetInput(''); } catch (err) { console.error(err); setMessage('Failed to set budget.'); } };
+        const handleSignOut = async () => { try { await window.firebase.signOut(auth); } catch (error) { console.error("Error signing out:", error); } };
+        const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+        const totals = useMemo(() => { let totalIncome = 0, totalExpense = 0; const budgetProgress = {}; Object.keys(budgets).forEach(cat => { budgetProgress[cat] = { spent: 0, budget: budgets[cat] }; }); transactions.forEach(t => { const convertedAmount = t.amount * (exchangeRates[t.currency] / exchangeRates[baseCurrency]); if (t.type === 'Income') { totalIncome += convertedAmount; } else { totalExpense += convertedAmount; if (budgetProgress[t.category]) { budgetProgress[t.category].spent += convertedAmount; } } }); return { income: totalIncome.toFixed(2), expense: totalExpense.toFixed(2), net: (totalIncome - totalExpense).toFixed(2), budgetProgress }; }, [transactions, budgets, baseCurrency]);
+        const getGoalsProgress = (goal) => ((Math.min(goal.currentAmount / goal.targetAmount, 1)) * 100).toFixed(0);
 
         return (
             <div className="p-4 md:p-8 lg:p-12 space-y-8 bg-slate-900 min-h-screen text-gray-200">
-                <div className="flex justify-between items-center flex-wrap gap-4">
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">Financial Dashboard</h1>
-                    <button onClick={handleSignOut} className="flex items-center gap-2 bg-slate-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                        <LogOut className="w-5 h-5" />
-                        <span>Sign Out</span>
-                    </button>
-                </div>
-                
+                <div className="flex justify-between items-center flex-wrap gap-4"><h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">Financial Dashboard</h1><button onClick={handleSignOut} className="flex items-center gap-2 bg-slate-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span>Sign Out</span></button></div>
                 {message && (<div className="bg-blue-600 text-white p-4 rounded-lg shadow-md flex justify-between items-center"><button onClick={() => setMessage('')} className="ml-4 font-bold">&times;</button></div>)}
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Income</h3><DollarSign className="w-8 h-8 text-green-400"/></div><p className="text-4xl font-extrabold text-green-400">{getSymbol(currency)}{totals.income}</p></div>
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Expenses</h3><Wallet className="w-8 h-8 text-red-400"/></div><p className="text-4xl font-extrabold text-red-400">{getSymbol(currency)}{totals.expense}</p></div>
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Net Flow</h3><BarChart className="w-8 h-8 text-blue-400"/></div><p className="text-4xl font-extrabold text-blue-400">{getSymbol(currency)}{totals.net}</p></div>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Income</h3><div className="flex items-center"><DollarSign className="w-8 h-8 text-green-400 mr-2"/><select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)} className="bg-slate-700 text-white p-2 rounded-lg text-sm">{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select></div></div><p className="text-4xl font-extrabold text-green-400">{getSymbol(baseCurrency)}{totals.income}</p></div>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Expenses</h3><Wallet className="w-8 h-8 text-red-400"/></div><p className="text-4xl font-extrabold text-red-400">{getSymbol(baseCurrency)}{totals.expense}</p></div>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Net Flow</h3><BarChart className="w-8 h-8 text-blue-400"/></div><p className="text-4xl font-extrabold text-blue-400">{getSymbol(baseCurrency)}{totals.net}</p></div>
                 </div>
-
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
                         <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
                             <h2 className="text-2xl font-bold mb-6 text-gray-100">{editingTransactionId ? 'Edit Transaction' : 'Add New Transaction'}</h2>
                             <form onSubmit={handleAddOrUpdateTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div><label className="block text-sm font-medium mb-1 text-slate-400">Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200"/></div>
+                                <div><label className="block text-sm font-medium mb-1 text-slate-400">Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600"/></div>
                                 <div><label className="block text-sm font-medium mb-1 text-slate-400">Description</label><input type="text" value={description} onChange={(e) => setDescription(e.target.value)} required placeholder="e.g., Coffee" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/></div>
                                 <div><label className="block text-sm font-medium mb-1 text-slate-400">Amount</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required step="0.01" placeholder="e.g., 4.50" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/></div>
                                 <div><label className="block text-sm font-medium mb-1 text-slate-400">Type</label><select value={type} onChange={(e) => { setType(e.target.value); setCategory(categories[e.target.value][0]); }} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{Object.keys(categories).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
                                 <div><label className="block text-sm font-medium mb-1 text-slate-400">Category</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{categories[type].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
                                 <div><label className="block text-sm font-medium mb-1 text-slate-400">Currency</label><select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select></div>
-                                <div className="md:col-span-2 mt-4 flex justify-between gap-4">
-                                    <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors shadow-lg">{editingTransactionId ? 'Update Transaction' : 'Add Transaction'}</button>
-                                    {editingTransactionId && (<button type="button" onClick={() => setEditingTransactionId(null)} className="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700">Cancel Edit</button>)}
-                                </div>
+                                <div className="md:col-span-2 mt-4 flex justify-between gap-4"><button type="submit" className="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700">{editingTransactionId ? 'Update' : 'Add'}</button>{editingTransactionId && (<button type="button" onClick={() => setEditingTransactionId(null)} className="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700">Cancel</button>)}</div>
                             </form>
                         </div>
+                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><h2 className="text-2xl font-bold mb-6 text-gray-100">Transaction History</h2><div className="overflow-x-auto"><table className="min-w-full divide-y divide-slate-700"><thead className="bg-slate-700"><tr><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase">Date</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase">Description</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase">Type</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase">Amount</th><th className="p-3 text-center text-xs font-medium text-slate-400 uppercase">Actions</th></tr></thead><tbody className="bg-slate-800 divide-y divide-slate-700">{transactions.length > 0 ? (transactions.map(t => (<tr key={t.id} className="hover:bg-slate-700"><td className="p-3 whitespace-nowrap">{formatDate(t.date)}</td><td className="p-3">{t.description}</td><td className={`p-3 font-bold ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>{t.type}</td><td className={`p-3 font-bold ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>{getSymbol(t.currency)}{t.amount.toFixed(2)}</td><td className="p-3 text-center"><div className="flex items-center justify-center gap-2"><button onClick={() => handleEditTransaction(t)} className="text-blue-400 hover:text-blue-500"><Edit className="w-5 h-5" /></button><button onClick={() => handleDeleteTransaction(t.id)} className="text-red-400 hover:text-red-500"><Trash2 className="w-5 h-5" /></button></div></td></tr>))) : (<tr><td colSpan="5" className="py-6 text-center text-slate-400">No transactions yet.</td></tr>)}</tbody></table></div></div>
+                    </div>
+                    <div className="lg:col-span-1 space-y-8">
+                        <SpendingChart transactions={transactions} baseCurrency={baseCurrency} />
                         <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
-                            <h2 className="text-2xl font-bold mb-6 text-gray-100">Transaction History</h2>
-                            <div className="overflow-x-auto">
-                                <table className="min-w-full divide-y divide-slate-700">
-                                    <thead className="bg-slate-700"><tr><th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">Date</th><th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">Description</th><th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">Type</th><th className="py-3 px-3 text-left text-xs font-medium text-slate-400 uppercase">Amount</th><th className="py-3 px-3 text-center text-xs font-medium text-slate-400 uppercase">Actions</th></tr></thead>
-                                    <tbody className="bg-slate-800 divide-y divide-slate-700">
-                                        {transactions.length > 0 ? (transactions.map(t => (
-                                            <tr key={t.id} className="hover:bg-slate-700"><td className="py-3 px-3 whitespace-nowrap">{formatDate(t.date)}</td><td className="py-3 px-3">{t.description}</td><td className={`py-3 px-3 font-bold ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>{t.type}</td><td className={`py-3 px-3 font-bold ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>{getSymbol(t.currency)}{t.amount.toFixed(2)}</td><td className="py-3 px-3 text-center"><div className="flex items-center justify-center gap-2"><button onClick={() => handleEditTransaction(t)} className="text-blue-400 hover:text-blue-500"><Edit className="w-5 h-5" /></button><button onClick={() => handleDeleteTransaction(t.id)} className="text-red-400 hover:text-red-500"><Trash2 className="w-5 h-5" /></button></div></td></tr>
-                                        ))) : (<tr><td colSpan="5" className="py-6 text-center text-slate-400">No transactions yet.</td></tr>)}
-                                    </tbody>
-                                </table>
+                            <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Wallet className="w-7 h-7 mr-2"/>Savings Goals</h2>
+                            <div className="space-y-4">
+                                {goals.length > 0 ? (goals.map(goal => (<div key={goal.id} className="bg-slate-700 p-4 rounded-lg"><div className="flex justify-between items-center mb-1"><span className="font-semibold">{goal.name}</span><span className="text-xs text-slate-400">{getSymbol(baseCurrency)}{goal.currentAmount || 0} / {getSymbol(baseCurrency)}{goal.targetAmount}</span></div><div className="w-full bg-slate-600 rounded-full h-2.5"><div className="bg-teal-500 h-2.5 rounded-full" style={{ width: `${getGoalsProgress(goal)}%` }}></div></div></div>))) : (<p className="text-center text-slate-400">No goals added yet.</p>)}
+                                <form onSubmit={handleAddGoal} className="space-y-2"><input type="text" value={newGoalName} onChange={(e) => setNewGoalName(e.target.value)} placeholder="Goal Name" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/><input type="number" value={newGoalTarget} onChange={(e) => setNewGoalTarget(e.target.value)} step="0.01" placeholder="Target Amount" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/><button type="submit" className="w-full bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700">Add Goal</button></form>
                             </div>
                         </div>
                     </div>
-                    <div className="lg:col-span-1 space-y-8">
-                        <SpendingChart transactions={transactions} baseCurrency={currency} />
-                    </div>
+                </div>
+                <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
+                    <MortgageCalculator />
+                    <AiMortgageInsights />
                 </div>
             </div>
         );
     };
-
     const App = () => {
         const [user, setUser] = useState(null);
         const [auth, setAuth] = useState(null);
@@ -299,12 +246,15 @@
                 const app = window.firebase.initializeApp(firebaseConfig);
                 const authInstance = window.firebase.getAuth(app);
                 const dbInstance = window.firebase.getFirestore(app);
+                
                 setAuth(authInstance);
                 setDb(dbInstance);
+
                 const unsubscribe = window.firebase.onAuthStateChanged(authInstance, (currentUser) => {
                     setUser(currentUser);
                     setIsInitializing(false);
                 });
+
                 return () => unsubscribe();
             } catch (error) {
                 console.error("FATAL: Error initializing Firebase:", error);
@@ -343,6 +293,7 @@
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
+
   </script>
 </body>
 </html>
