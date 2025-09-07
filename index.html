@@ -110,8 +110,7 @@
   );
 };    
     const AiMortgageInsights = () => {
-      const AiMortgageInsights = () => {
-    const [statementText, setStatementText] = useState('');
+      const [statementText, setStatementText] = useState('');
     const [insights, setInsights] = useState(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState('');
@@ -154,7 +153,7 @@
             
             const result = await response.json();
             const aiResponse = result.candidates[0].content.parts[0].text;
-            setInsights(aiResponse.replace(/\*\*/g, '')); // Clean up markdown formatting
+            setInsights(aiResponse.replace(/\*\*/g, ''));
         } catch (error) {
             console.error("Error analyzing statement:", error);
             setError("An error occurred while fetching insights. Please try again later.");
@@ -192,7 +191,7 @@
             </div>
         </div>
     );
-};    
+};
       const SpendingChart = ({ transactions, baseCurrency }) => {
         const canvasRef = useRef(null);
         const chartRef = useRef(null);
