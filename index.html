@@ -123,7 +123,7 @@
             if (!statementText.trim()) { setError('Please paste your mortgage statement details.'); return; }
             setError(''); setInsights(null); setIsAnalyzing(true);
             try {
-                const apiKey = "AIzaSyDNuMIjTS1XK4AZNpXiPB0nThFXS3MhsQk"; // Your API Key
+                const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484"; // Your API Key
                 const prompt = `You are a professional financial advisor specializing in mortgages. Analyze the following mortgage statement data. Provide a detailed, actionable plan for the user to pay off their mortgage early, including specific strategies like the snowball or avalanche method, and explain how a small extra payment can make a big difference over time. Use a clear, encouraging tone.\n\nMortgage Statement Data:\n${statementText}`;
                 const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
@@ -271,7 +271,7 @@
             if (!pastedText.trim()) { setMessage('Please paste text to parse.'); return; }
             setIsParsing(true); setMessage('Parsing transactions... Please wait.');
             try {
-                const apiKey = "AIzaSyDNuMIjTS1XK4AZNpXiPB0nThFXS3MhsQk"; // Your API Key
+                const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484"; // Your API Key
                 const prompt = `Extract transaction data from the following text and return a JSON array. For each object, include a 'date' (YYYY-MM-DD), 'description' (string), 'amount' (number), 'type' ('Income', 'Personal Expense', or 'Business Expense'), 'category' (choose from: ${Object.values(categories).flat().join(', ')}), and 'currency' (e.g., 'USD', 'AED', 'EUR'). Ensure the date is correctly converted to YYYY-MM-DD format.\n\nText: ${pastedText}`;
                 const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
@@ -301,7 +301,7 @@
             setChatInput('');
             setIsChatting(true);
             try {
-                const apiKey = "AIzaSyDNuMIjTS1XK4AZNpXiPB0nThFXS3MhsQk"; // Your API Key
+                const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484"; // Your API Key
                 const financialDataSummary = `Total Income: ${totals.income} ${baseCurrency}, Total Expenses: ${totals.expense} ${baseCurrency}, Recent Transactions: ${JSON.stringify(transactions.slice(0, 5))}`;
                 const prompt = `You are an expert financial coach. Based on the user's question and their financial data, provide clear, actionable advice. Analyze their spending, income, and goals to help them manage debt or improve their financial health.\n\nFinancial Data Summary: ${financialDataSummary}\n\nConversation History:\n${newChatHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}\n\nYour Answer:`;
                 const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
