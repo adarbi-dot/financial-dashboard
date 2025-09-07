@@ -290,6 +290,10 @@
         const [selectedBudgetCategory, setSelectedBudgetCategory] = useState('Groceries');
         const [baseCurrency, setBaseCurrency] = useState('USD');
         const userId = user.uid;
+        const [chatHistory, setChatHistory] = useState([]);
+const [chatInput, setChatInput] = useState('');
+const [isChatting, setIsChatting] = useState(false);
+const chatEndRef = useRef(null); // To auto-scroll the chat
 
         // State and function for the Smart Document Importer
         const [pastedText, setPastedText] = useState('');
