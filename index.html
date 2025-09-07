@@ -570,12 +570,15 @@
         useEffect(() => {
             // This is where you would paste your Firebase config object
             const firebaseConfig = {
-                apiKey: "YOUR_API_KEY",
-                authDomain: "YOUR_AUTH_DOMAIN",
-                projectId: "YOUR_PROJECT_ID",
-                storageBucket: "YOUR_STORAGE_BUCKET",
-                messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-                appId: "YOUR_APP_ID"            };
+          apiKey: "AIzaSyDtsfD6mUIkrW2Vi_S4MkOeXj9ABxSj0hw",
+          authDomain: "financial-wellness-dashboard.firebaseapp.com",
+          projectId: "financial-wellness-dashboard",
+          storageBucket: "financial-wellness-dashboard.appspot.com", // Corrected this for you
+          messagingSenderId: "599378817258",
+          appId: "1:599378817258:web:95841307d6960986f36793",
+          measurementId: "G-4TZ4BKTP9B"
+        };
+        // --- END OF REPLACEMENT ---
 
             try {
                 const app = window.firebase.initializeApp(firebaseConfig);
