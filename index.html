@@ -257,7 +257,7 @@
         
         // State for UI feedback
         const [message, setMessage] = useState('');
-        const [baseCurrency, setBaseCurrency] = useState('USD');
+        const [baseCurrency, setBaseCurrency] = useState(localStorage.getItem('userBaseCurrency') || 'USD');
         const userId = user.uid;
 
         // State for Goals form
