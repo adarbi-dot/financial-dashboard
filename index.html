@@ -367,7 +367,6 @@
                 setPastedText('');
             } catch (error) {
     console.error("Error during parsing:", error);
-    // --- THIS IS THE ONLY CHANGE ---
     setMessage(`Import Error: ${error.message}`); 
 }
             } finally {
