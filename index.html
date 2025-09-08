@@ -14,7 +14,10 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    window.firebase = { initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, updateDoc };
+    // Add 'writeBatch' to this import list
+import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    window.firebase = { initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, updateDoc , writeBatch };
   </script>
   <style>
     body { font-family: 'Inter', sans-serif; }
