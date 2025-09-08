@@ -366,8 +366,10 @@
                 setMessage(`Successfully imported ${parsedTransactions.length} transactions!`);
                 setPastedText('');
             } catch (error) {
-                console.error("Error during parsing:", error);
-                setMessage("Failed to import transactions. Please check the format and try again.");
+    console.error("Error during parsing:", error);
+    // --- THIS IS THE ONLY CHANGE ---
+    setMessage(`Import Error: ${error.message}`); 
+}
             } finally {
                 setPendingTransactions([]);
                 setIsParsing(false);
