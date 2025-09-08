@@ -10,26 +10,12 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, orderBy, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
     
-    // This block is now corrected with the proper commas
-    import { 
-        getFirestore, 
-        collection, 
-        onSnapshot, 
-        addDoc, 
-        doc, 
-        deleteDoc, 
-        setDoc, 
-        query, 
-        orderBy, 
-        updateDoc, 
-        writeBatch 
-    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-    // This block is also corrected to include writeBatch
     window.firebase = { 
         initializeApp, 
         getAuth, 
@@ -50,6 +36,7 @@
         writeBatch 
     };
   </script>
+
   <style>
     body { font-family: 'Inter', sans-serif; }
     .chat-bubble { animation: fadeIn 0.3s ease-in-out; }
@@ -84,7 +71,7 @@
     const getSymbol = (code ) => currencies.find(c => c.code === code)?.symbol || '';
 
 // --- END OF PART 1 ---
-    // --- CHILD COMPONENTS ---
+     // --- CHILD COMPONENTS ---
     const MortgageCalculator = () => {
       const [principal, setPrincipal] = useState(250000);
       const [interestRate, setInterestRate] = useState(4.5);
@@ -273,7 +260,7 @@
     };
 
 // --- END OF PART 2 ---
-       // --- MAIN DASHBOARD COMPONENT ---
+    // --- MAIN DASHBOARD COMPONENT ---
     const FinancialDashboard = ({ user, db, auth }) => {
         // State for data
         const [transactions, setTransactions] = useState([]);
@@ -310,52 +297,65 @@
         const [isChatting, setIsChatting] = useState(false);
         const chatEndRef = useRef(null);
 
-        // --- NEW STATE FOR OPTIMISTIC UI ---
+        // State for Optimistic UI
         const [pendingTransactions, setPendingTransactions] = useState([]);
 
-        // --- UPDATED FUNCTION WITH OPTIMISTIC UI ---
+        // --- DATA HANDLING & FIRESTORE ---
+        useEffect(() => {
+            if (!db || !userId) return;
+            const listeners = [];
+            
+            const transactionsRef = window.firebase.collection(db, `users/${userId}/transactions`);
+            const qTransactions = window.firebase.query(transactionsRef, window.firebase.orderBy('date', 'desc'));
+            listeners.push(window.firebase.onSnapshot(qTransactions, (snapshot) => { setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }, (error) => console.error("Error fetching transactions:", error)));
+            
+            const goalsRef = window.firebase.collection(db, `users/${userId}/goals`);
+            listeners.push(window.firebase.onSnapshot(goalsRef, (snapshot) => { setGoals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }, (error) => console.error("Error fetching goals:", error)));
+            
+            const budgetsRef = window.firebase.collection(db, `users/${userId}/budgets`);
+            listeners.push(window.firebase.onSnapshot(budgetsRef, (snapshot) => { const fetchedBudgets = {}; snapshot.docs.forEach(doc => { fetchedBudgets[doc.id] = doc.data().amount; }); setBudgets(fetchedBudgets); }, (error) => console.error("Error fetching budgets:", error)));
+            
+            return () => listeners.forEach(unsubscribe => unsubscribe());
+        }, [db, userId]);
+
+        // --- CRUD FUNCTIONS ---
+        const handleAddOrUpdateTransaction = async (e) => { e.preventDefault(); if (!date || !description || !amount || parseFloat(amount) <= 0) { setMessage('Please fill out all fields.'); return; } const transactionData = { date, description, amount: parseFloat(amount), type, category, currency }; try { if (editingTransactionId) { await window.firebase.updateDoc(window.firebase.doc(db, `users/${userId}/transactions`, editingTransactionId), transactionData); setMessage('Transaction updated!'); setEditingTransactionId(null); } else { await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/transactions`), transactionData); setMessage('Transaction added!'); } setDate(''); setDescription(''); setAmount(''); } catch (err) { console.error(err); setMessage('Failed to save transaction.'); } };
+        const handleDeleteTransaction = async (id) => { try { await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/transactions`, id)); setMessage("Transaction deleted."); } catch (err) { console.error(err); setMessage("Failed to delete transaction."); } };
+        const handleEditTransaction = (t) => { setEditingTransactionId(t.id); setDate(t.date); setDescription(t.description); setAmount(t.amount); setType(t.type); setCategory(t.category); setCurrency(t.currency); };
+        const handleAddGoal = async (e) => { e.preventDefault(); if (!newGoalName.trim() || !newGoalTarget || parseFloat(newGoalTarget) <= 0) { setMessage('Please enter a valid goal.'); return; } try { await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/goals`), { name: newGoalName, targetAmount: parseFloat(newGoalTarget), currentAmount: 0 }); setMessage('Goal added!'); setNewGoalName(''); setNewGoalTarget(''); } catch (err) { console.error(err); setMessage('Failed to add goal.'); } };
+        const handleDeleteGoal = async (id) => { try { await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/goals`, id)); setMessage("Goal deleted."); } catch (err) { console.error(err); setMessage("Failed to delete goal."); } };
+        const handleAddBudget = async (e) => { e.preventDefault(); if (!selectedBudgetCategory || !budgetInput || parseFloat(budgetInput) <= 0) { setMessage('Please enter a valid budget.'); return; } try { await window.firebase.setDoc(window.firebase.doc(db, `users/${userId}/budgets`, selectedBudgetCategory), { amount: parseFloat(budgetInput) }); setMessage(`Budget for ${selectedBudgetCategory} set!`); setBudgetInput(''); } catch (err) { console.error(err); setMessage('Failed to set budget.'); } };
+        const handleSignOut = async () => { try { await window.firebase.signOut(auth); } catch (error) { console.error("Error signing out:", error); } };
+
+        // --- AI & PARSING FUNCTIONS ---
         const handleParseText = async () => {
             if (!pastedText.trim()) { setMessage('Please paste text to parse.'); return; }
-
             const optimisticId = `pending-${Date.now()}`;
             const ghostTransaction = { id: optimisticId, description: "Parsing with AI, please wait...", isPending: true };
             setPendingTransactions([ghostTransaction]);
-
             setIsParsing(true);
             setMessage('Parsing transactions...');
-            
             try {
                 const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484"; // Your API Key
                 const prompt = `Extract transaction data from the following text and return a JSON array. For each object, include a 'date' (YYYY-MM-DD), 'description' (string), 'amount' (number), 'type' ('Income', 'Personal Expense', or 'Business Expense'), 'category' (choose from: ${Object.values(categories).flat().join(', ')}), and 'currency' (e.g., 'USD', 'AED', 'EUR'). Ensure the date is correctly converted to YYYY-MM-DD format.\n\nText: ${pastedText}`;
                 const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
-                
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
                 if (!response.ok) { throw new Error('API request failed'); }
-
                 const result = await response.json();
                 const jsonText = result.candidates[0].content.parts[0].text;
                 const parsedTransactions = JSON.parse(jsonText);
-              
-                // --- NEW: BATCH WRITE LOGIC ---
-                // This is much more efficient and reliable than a loop.
                 const batch = window.firebase.writeBatch(db);
                 const transactionsCollectionRef = window.firebase.collection(db, `users/${userId}/transactions`);
-
                 parsedTransactions.forEach(transaction => {
                     if (transaction.description && transaction.amount > 0) {
                         const newTransactionRef = window.firebase.doc(transactionsCollectionRef);
                         batch.set(newTransactionRef, transaction);
                     }
                 });
-
-                // Commit the batch write to the database
                 await batch.commit();
-                // --- END OF BATCH WRITE LOGIC ---
-
                 setMessage(`Successfully added ${parsedTransactions.length} transactions!`);
                 setPastedText('');
-
             } catch (error) {
                 console.error("Error during parsing:", error);
                 setMessage("Failed to parse text. Please check the format and try again.");
@@ -389,48 +389,77 @@
 
         useEffect(() => { if (chatEndRef.current) { chatEndRef.current.scrollTop = chatEndRef.current.scrollHeight; } }, [chatHistory]);
 
-        useEffect(() => {
-            if (!db || !userId) return;
-            const listeners = [];
-            const transactionsRef = window.firebase.collection(db, `users/${userId}/transactions`);
-            const qTransactions = window.firebase.query(transactionsRef, window.firebase.orderBy('date', 'desc'));
-            listeners.push(window.firebase.onSnapshot(qTransactions, (snapshot) => { setTransactions(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }, (error) => console.error("Error fetching transactions:", error)));
-            const goalsRef = window.firebase.collection(db, `users/${userId}/goals`);
-            listeners.push(window.firebase.onSnapshot(goalsRef, (snapshot) => { setGoals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }, (error) => console.error("Error fetching goals:", error)));
-            const budgetsRef = window.firebase.collection(db, `users/${userId}/budgets`);
-            listeners.push(window.firebase.onSnapshot(budgetsRef, (snapshot) => { const fetchedBudgets = {}; snapshot.docs.forEach(doc => { fetchedBudgets[doc.id] = doc.data().amount; }); setBudgets(fetchedBudgets); }, (error) => console.error("Error fetching budgets:", error)));
-            return () => listeners.forEach(unsubscribe => unsubscribe());
-        }, [db, userId]);
-
-        const handleAddOrUpdateTransaction = async (e) => { e.preventDefault(); if (!date || !description || !amount || parseFloat(amount) <= 0) { setMessage('Please fill out all fields.'); return; } const transactionData = { date, description, amount: parseFloat(amount), type, category, currency }; try { if (editingTransactionId) { await window.firebase.updateDoc(window.firebase.doc(db, `users/${userId}/transactions`, editingTransactionId), transactionData); setMessage('Transaction updated!'); setEditingTransactionId(null); } else { await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/transactions`), transactionData); setMessage('Transaction added!'); } setDate(''); setDescription(''); setAmount(''); } catch (err) { console.error(err); setMessage('Failed to save transaction.'); } };
-        const handleDeleteTransaction = async (id) => { try { await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/transactions`, id)); setMessage("Transaction deleted."); } catch (err) { console.error(err); setMessage("Failed to delete transaction."); } };
-        const handleEditTransaction = (t) => { setEditingTransactionId(t.id); setDate(t.date); setDescription(t.description); setAmount(t.amount); setType(t.type); setCategory(t.category); setCurrency(t.currency); };
-        const handleAddGoal = async (e) => { e.preventDefault(); if (!newGoalName.trim() || !newGoalTarget || parseFloat(newGoalTarget) <= 0) { setMessage('Please enter a valid goal.'); return; } try { await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/goals`), { name: newGoalName, targetAmount: parseFloat(newGoalTarget), currentAmount: 0 }); setMessage('Goal added!'); setNewGoalName(''); setNewGoalTarget(''); } catch (err) { console.error(err); setMessage('Failed to add goal.'); } };
-        const handleDeleteGoal = async (id) => { try { await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/goals`, id)); setMessage("Goal deleted."); } catch (err) { console.error(err); setMessage("Failed to delete goal."); } };
-        const handleAddBudget = async (e) => { e.preventDefault(); if (!selectedBudgetCategory || !budgetInput || parseFloat(budgetInput) <= 0) { setMessage('Please enter a valid budget.'); return; } try { await window.firebase.setDoc(window.firebase.doc(db, `users/${userId}/budgets`, selectedBudgetCategory), { amount: parseFloat(budgetInput) }); setMessage(`Budget for ${selectedBudgetCategory} set!`); setBudgetInput(''); } catch (err) { console.error(err); setMessage('Failed to set budget.'); } };
-        const handleSignOut = async () => { try { await window.firebase.signOut(auth); } catch (error) { console.error("Error signing out:", error); } };
+        // --- DERIVED STATE & FORMATTERS ---
         const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
         const totals = useMemo(() => { let totalIncome = 0, totalExpense = 0; const budgetProgress = {}; Object.keys(budgets).forEach(cat => { budgetProgress[cat] = { spent: 0, budget: budgets[cat] }; }); transactions.forEach(t => { const convertedAmount = t.amount * (exchangeRates[t.currency] / exchangeRates[baseCurrency]); if (t.type === 'Income') { totalIncome += convertedAmount; } else { totalExpense += convertedAmount; if (budgetProgress[t.category]) { budgetProgress[t.category].spent += convertedAmount; } } }); return { income: totalIncome.toFixed(2), expense: totalExpense.toFixed(2), net: (totalIncome - totalExpense).toFixed(2), budgetProgress }; }, [transactions, budgets, baseCurrency]);
         const getGoalsProgress = (goal) => ((Math.min(goal.currentAmount / goal.targetAmount, 1)) * 100).toFixed(0);
 
-        return (
+// --- END OF PART 3 ---
+      return (
             <div className="p-4 md:p-8 lg:p-12 space-y-8 bg-slate-900 min-h-screen text-gray-200">
-                <div className="flex justify-between items-center flex-wrap gap-4"><h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">Financial Dashboard</h1><button onClick={handleSignOut} className="flex items-center gap-2 bg-slate-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"><LogOut className="w-5 h-5" /><span>Sign Out</span></button></div>
-                {message && (<div className="bg-blue-600 text-white p-4 rounded-lg shadow-md flex justify-between items-center"><p>{message}</p><button onClick={() => setMessage('')} className="ml-4 font-bold">&times;</button></div>)}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Income</h3><div className="flex items-center"><DollarSign className="w-8 h-8 text-green-400 mr-2"/><select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)} className="bg-slate-700 text-white p-2 rounded-lg text-sm">{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select></div></div><p className="text-4xl font-extrabold text-green-400">{getSymbol(baseCurrency)}{totals.income}</p></div>
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Expenses</h3><Wallet className="w-8 h-8 text-red-400"/></div><p className="text-4xl font-extrabold text-red-400">{getSymbol(baseCurrency)}{totals.expense}</p></div>
-                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Net Flow</h3><BarChart className="w-8 h-8 text-blue-400"/></div><p className="text-4xl font-extrabold text-blue-400">{getSymbol(baseCurrency)}{totals.net}</p></div>
+                <div className="flex justify-between items-center flex-wrap gap-4">
+                    <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">Financial Dashboard</h1>
+                    <button onClick={handleSignOut} className="flex items-center gap-2 bg-slate-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        <LogOut className="w-5 h-5" />
+                        <span>Sign Out</span>
+                    </button>
                 </div>
+
+                {message && (
+                    <div className="bg-blue-600 text-white p-4 rounded-lg shadow-md flex justify-between items-center">
+                        <p>{message}</p>
+                        <button onClick={() => setMessage('')} className="ml-4 font-bold">&times;</button>
+                    </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-xl font-bold text-gray-100">Total Income</h3>
+                            <div className="flex items-center">
+                                <DollarSign className="w-8 h-8 text-green-400 mr-2"/>
+                                <select value={baseCurrency} onChange={(e) => setBaseCurrency(e.target.value)} className="bg-slate-700 text-white p-2 rounded-lg text-sm">{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
+                            </div>
+                        </div>
+                        <p className="text-4xl font-extrabold text-green-400">{getSymbol(baseCurrency)}{totals.income}</p>
+                    </div>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                        <div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Total Expenses</h3><Wallet className="w-8 h-8 text-red-400"/></div>
+                        <p className="text-4xl font-extrabold text-red-400">{getSymbol(baseCurrency)}{totals.expense}</p>
+                    </div>
+                    <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                        <div className="flex items-center justify-between mb-4"><h3 className="text-xl font-bold text-gray-100">Net Flow</h3><BarChart className="w-8 h-8 text-blue-400"/></div>
+                        <p className="text-4xl font-extrabold text-blue-400">{getSymbol(baseCurrency)}{totals.net}</p>
+                    </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     <div className="lg:col-span-2 space-y-8">
-                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><h2 className="text-2xl font-bold mb-6 text-gray-100">{editingTransactionId ? 'Edit Transaction' : 'Add New Transaction'}</h2><form onSubmit={handleAddOrUpdateTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label className="block text-sm font-medium mb-1 text-slate-400">Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600"/></div><div><label className="block text-sm font-medium mb-1 text-slate-400">Description</label><input type="text" value={description} onChange={(e) => setDescription(e.target.value)} required placeholder="e.g., Coffee" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/></div><div><label className="block text-sm font-medium mb-1 text-slate-400">Amount</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required step="0.01" placeholder="e.g., 4.50" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/></div><div><label className="block text-sm font-medium mb-1 text-slate-400">Type</label><select value={type} onChange={(e) => { setType(e.target.value); setCategory(categories[e.target.value][0]); }} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{Object.keys(categories).map(t => <option key={t} value={t}>{t}</option>)}</select></div><div><label className="block text-sm font-medium mb-1 text-slate-400">Category</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{categories[type].map(c => <option key={c} value={c}>{c}</option>)}</select></div><div><label className="block text-sm font-medium mb-1 text-slate-400">Currency</label><select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select></div><div className="md:col-span-2 mt-4 flex justify-between gap-4"><button type="submit" className="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700">{editingTransactionId ? 'Update' : 'Add'}</button>{editingTransactionId && (<button type="button" onClick={() => setEditingTransactionId(null)} className="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700">Cancel</button>)}</div></form></div>
-                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><h2 className="text-2xl font-bold mb-6 text-gray-100">Smart Document Importer</h2><div className="space-y-4"><p className="text-sm text-slate-400">Paste transaction data from a text file or spreadsheet. The AI will automatically add them.</p><textarea value={pastedText} onChange={(e) => setPastedText(e.target.value)} rows="4" placeholder="Paste data here..." className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea><button onClick={handleParseText} disabled={isParsing} className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isParsing ? 'bg-blue-800 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>{isParsing ? ( <Loader2 className="animate-spin inline-block mr-2"/> ) : ( 'Parse & Add Transactions' )}</button></div></div>
-                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><h2 className="text-2xl font-bold mb-6 text-gray-100">Transaction History</h2>
+                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                            <h2 className="text-2xl font-bold mb-6 text-gray-100">{editingTransactionId ? 'Edit Transaction' : 'Add New Transaction'}</h2>
+                            <form onSubmit={handleAddOrUpdateTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div><label className="block text-sm font-medium mb-1 text-slate-400">Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600"/></div>
+                                <div><label className="block text-sm font-medium mb-1 text-slate-400">Description</label><input type="text" value={description} onChange={(e) => setDescription(e.target.value)} required placeholder="e.g., Coffee" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/></div>
+                                <div><label className="block text-sm font-medium mb-1 text-slate-400">Amount</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required step="0.01" placeholder="e.g., 4.50" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/></div>
+                                <div><label className="block text-sm font-medium mb-1 text-slate-400">Type</label><select value={type} onChange={(e) => { setType(e.target.value); setCategory(categories[e.target.value][0]); }} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{Object.keys(categories).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
+                                <div><label className="block text-sm font-medium mb-1 text-slate-400">Category</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{categories[type].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                                <div><label className="block text-sm font-medium mb-1 text-slate-400">Currency</label><select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600">{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select></div>
+                                <div className="md:col-span-2 mt-4 flex justify-between gap-4"><button type="submit" className="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700">{editingTransactionId ? 'Update' : 'Add'}</button>{editingTransactionId && (<button type="button" onClick={() => setEditingTransactionId(null)} className="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700">Cancel</button>)}</div>
+                            </form>
+                        </div>
+                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                            <h2 className="text-2xl font-bold mb-6 text-gray-100">Smart Document Importer</h2>
+                            <div className="space-y-4">
+                                <p className="text-sm text-slate-400">Paste transaction data from a text file or spreadsheet. The AI will automatically add them.</p>
+                                <textarea value={pastedText} onChange={(e) => setPastedText(e.target.value)} rows="4" placeholder="Paste data here..." className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                <button onClick={handleParseText} disabled={isParsing} className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isParsing ? 'bg-blue-800 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>{isParsing ? ( <Loader2 className="animate-spin inline-block mr-2"/> ) : ( 'Parse & Add Transactions' )}</button>
+                            </div>
+                        </div>
+                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                            <h2 className="text-2xl font-bold mb-6 text-gray-100">Transaction History</h2>
                             <div className="overflow-x-auto">
                                 <table className="min-w-full divide-y divide-slate-700">
                                     <thead className="bg-slate-700"><tr><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase">Date</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase">Description</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase">Type</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase">Amount</th><th className="p-3 text-center text-xs font-medium text-slate-400 uppercase">Actions</th></tr></thead>
-                                    {/* --- UPDATED TABLE BODY WITH OPTIMISTIC UI --- */}
                                     <tbody className="bg-slate-800 divide-y divide-slate-700">
                                         {pendingTransactions.map(t => (
                                             <tr key={t.id} className="opacity-50 animate-pulse">
@@ -454,11 +483,33 @@
                                 </table>
                             </div>
                         </div>
-                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><h2 className="text-2xl font-bold mb-6 text-gray-100">AI Financial Coach</h2><div className="flex flex-col h-96"><div ref={chatEndRef} className="flex-1 overflow-y-auto p-4 bg-slate-700 rounded-lg mb-4 space-y-4">{chatHistory.length === 0 && (<div className="text-center text-slate-400">Ask a question about your finances to get started.</div>)}{chatHistory.map((message, index) => (<div key={index} className={`flex items-start gap-2 chat-bubble ${message.role === 'user' ? 'justify-end' : ''}`}><div className={`p-3 rounded-lg max-w-sm ${message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-600'}`}><p className="whitespace-pre-wrap">{message.content}</p></div></div>))}</div><div className="flex items-center gap-2"><input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !isChatting) handleSendMessage(); }} placeholder="e.g., How can I reduce my spending?" className="flex-1 p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isChatting}/><button onClick={handleSendMessage} disabled={isChatting || !chatInput.trim()} className={`p-3 rounded-lg transition-colors shadow-lg ${isChatting || !chatInput.trim() ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>{isChatting ? <Loader2 className="w-5 h-5 animate-spin"/> : "Ask"}</button></div></div></div>
+                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                            <h2 className="text-2xl font-bold mb-6 text-gray-100">AI Financial Coach</h2>
+                            <div className="flex flex-col h-96">
+                                <div ref={chatEndRef} className="flex-1 overflow-y-auto p-4 bg-slate-700 rounded-lg mb-4 space-y-4">
+                                    {chatHistory.length === 0 && (<div className="text-center text-slate-400">Ask a question about your finances to get started.</div>)}
+                                    {chatHistory.map((message, index) => (<div key={index} className={`flex items-start gap-2 chat-bubble ${message.role === 'user' ? 'justify-end' : ''}`}><div className={`p-3 rounded-lg max-w-sm ${message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-600'}`}><p className="whitespace-pre-wrap">{message.content}</p></div></div>))}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !isChatting) handleSendMessage(); }} placeholder="e.g., How can I reduce my spending?" className="flex-1 p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isChatting}/>
+                                    <button onClick={handleSendMessage} disabled={isChatting || !chatInput.trim()} className={`p-3 rounded-lg transition-colors shadow-lg ${isChatting || !chatInput.trim() ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>{isChatting ? <Loader2 className="w-5 h-5 animate-spin"/> : "Ask"}</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div className="lg:col-span-1 space-y-8">
                         <SpendingChart transactions={transactions} baseCurrency={baseCurrency} />
-                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl"><h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Wallet className="w-7 h-7 mr-2"/>Savings Goals</h2><div className="space-y-4">{goals.length > 0 ? (goals.map(goal => (<div key={goal.id} className="bg-slate-700 p-4 rounded-lg"><div className="flex justify-between items-center mb-1"><span className="font-semibold">{goal.name}</span><span className="text-xs text-slate-400">{getSymbol(baseCurrency)}{goal.currentAmount || 0} / {getSymbol(baseCurrency)}{goal.targetAmount}</span></div><div className="w-full bg-slate-600 rounded-full h-2.5"><div className="bg-teal-500 h-2.5 rounded-full" style={{ width: `${getGoalsProgress(goal)}%` }}></div></div></div>))) : (<p className="text-center text-slate-400">No goals added yet.</p>)}<form onSubmit={handleAddGoal} className="space-y-2"><input type="text" value={newGoalName} onChange={(e) => setNewGoalName(e.target.value)} placeholder="Goal Name" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/><input type="number" value={newGoalTarget} onChange={(e) => setNewGoalTarget(e.target.value)} step="0.01" placeholder="Target Amount" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/><button type="submit" className="w-full bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700">Add Goal</button></form></div></div>
+                        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl">
+                            <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Wallet className="w-7 h-7 mr-2"/>Savings Goals</h2>
+                            <div className="space-y-4">
+                                {goals.length > 0 ? (goals.map(goal => (<div key={goal.id} className="bg-slate-700 p-4 rounded-lg"><div className="flex justify-between items-center mb-1"><span className="font-semibold">{goal.name}</span><span className="text-xs text-slate-400">{getSymbol(baseCurrency)}{goal.currentAmount || 0} / {getSymbol(baseCurrency)}{goal.targetAmount}</span></div><div className="w-full bg-slate-600 rounded-full h-2.5"><div className="bg-teal-500 h-2.5 rounded-full" style={{ width: `${getGoalsProgress(goal)}%` }}></div></div></div>))) : (<p className="text-center text-slate-400">No goals added yet.</p>)}
+                                <form onSubmit={handleAddGoal} className="space-y-2">
+                                    <input type="text" value={newGoalName} onChange={(e) => setNewGoalName(e.target.value)} placeholder="Goal Name" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/>
+                                    <input type="number" value={newGoalTarget} onChange={(e) => setNewGoalTarget(e.target.value)} step="0.01" placeholder="Target Amount" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-500"/>
+                                    <button type="submit" className="w-full bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700">Add Goal</button>
+                                </form>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
@@ -478,7 +529,6 @@
         const [firebaseError, setFirebaseError] = useState(null);
 
         useEffect(() => {
-            // This is your Firebase configuration object
             const firebaseConfig = {
               apiKey: "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484",
               authDomain: "financial-wellness-dashboard.firebaseapp.com",
@@ -501,47 +551,29 @@
                     setIsInitializing(false);
                 });
 
-                // Cleanup subscription on unmount
                 return () => unsubscribe();
             } catch (error) {
                 console.error("FATAL: Error initializing Firebase:", error);
                 setFirebaseError("Could not connect to Firebase. Please check the configuration.");
                 setIsInitializing(false);
             }
-        }, []); // Empty dependency array ensures this runs only once
+        }, []);
 
         if (isInitializing) {
-            return (
-                <div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400">
-                    <Loader2 className="w-10 h-10 animate-spin mr-3"/>
-                    <p>Connecting to services...</p>
-                </div>
-            );
+            return (<div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400"><Loader2 className="w-10 h-10 animate-spin mr-3"/><p>Connecting to services...</p></div>);
         }
 
         if (firebaseError) {
-            return (
-                <div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400">
-                    <p>{firebaseError}</p>
-                </div>
-            );
+            return (<div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400"><p>{firebaseError}</p></div>);
         }
 
-        return (
-            <>
-                {user ? (
-                    <FinancialDashboard user={user} db={db} auth={auth} />
-                ) : (
-                    <LoginPage auth={auth} />
-                )}
-            </>
-        );
+        return (<> {user ? (<FinancialDashboard user={user} db={db} auth={auth} />) : (<LoginPage auth={auth} />)} </>);
     };
 
-    // Render the final App component to the root element
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
-
   </script>
 </body>
 </html>
+
+// --- END OF PART 4 ---
