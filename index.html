@@ -357,10 +357,10 @@
                 const batch = window.firebase.writeBatch(db);
                 const transactionsCollectionRef = window.firebase.collection(db, `users/${userId}/transactions`);
                 parsedTransactions.forEach(transaction => {
-                    if (transaction.description && transaction.amount > 0) {
-                        const newTransactionRef = window.firebase.doc(transactionsCollectionRef);
-                        batch.set(newTransactionRef, transaction);
-                    }
+                    if (transaction.description && transaction.amount > 0 && transaction.date) {
+               const newTransactionRef = window.firebase.doc(transactionsCollectionRef);
+                   batch.set(newTransactionRef, transaction);
+                }
                 });
                 await batch.commit();
                 setMessage(`Successfully imported ${parsedTransactions.length} transactions!`);
