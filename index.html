@@ -50,7 +50,7 @@
     const getSymbol = (code ) => currencies.find(c => c.code === code)?.symbol || '';
 
 // --- END OF PART 1 ---
-    // --- CHILD COMPONENTS ---
+    / --- CHILD COMPONENTS ---
     const MortgageCalculator = () => {
       const [principal, setPrincipal] = useState(250000);
       const [interestRate, setInterestRate] = useState(4.5);
@@ -239,7 +239,7 @@
     };
 
 // --- END OF PART 2 ---
-    // --- MAIN DASHBOARD COMPONENT ---
+   // --- MAIN DASHBOARD COMPONENT ---
     const FinancialDashboard = ({ user, db, auth }) => {
         // State for data
         const [transactions, setTransactions] = useState([]);
@@ -358,9 +358,9 @@
                 const transactionsCollectionRef = window.firebase.collection(db, `users/${userId}/transactions`);
                 parsedTransactions.forEach(transaction => {
                     if (transaction.description && transaction.amount > 0 && transaction.date) {
-               const newTransactionRef = window.firebase.doc(transactionsCollectionRef);
-                   batch.set(newTransactionRef, transaction);
-                }
+                        const newTransactionRef = window.firebase.doc(transactionsCollectionRef);
+                        batch.set(newTransactionRef, transaction);
+                    }
                 });
                 await batch.commit();
                 setMessage(`Successfully imported ${parsedTransactions.length} transactions!`);
@@ -404,7 +404,7 @@
         const getGoalsProgress = (goal) => ((Math.min(goal.currentAmount / goal.targetAmount, 1)) * 100).toFixed(0);
 
 // --- END OF PART 3 ---
-        return (
+                return (
             <div className="p-4 md:p-8 lg:p-12 space-y-8 bg-slate-900 min-h-screen text-gray-200">
                 <div className="flex justify-between items-center flex-wrap gap-4">
                     <h1 className="text-4xl md:text-5xl font-extrabold text-white leading-tight">Financial Dashboard</h1>
@@ -427,9 +427,17 @@
                             <h3 className="text-xl font-bold text-gray-100">Total Income</h3>
                             <div className="flex items-center">
                                 <DollarSign className="w-8 h-8 text-green-400 mr-2"/>
-                               <select value={baseCurrency} onChange={(e) => { const newCurrency = e.target.value;
-                                setBaseCurrency(newCurrency);
-                                localStorage.setItem('userBaseCurrency', newCurrency); }
+                                <select 
+                                    value={baseCurrency} 
+                                    onChange={(e) => {
+                                        const newCurrency = e.target.value;
+                                        setBaseCurrency(newCurrency);
+                                        localStorage.setItem('userBaseCurrency', newCurrency);
+                                    }} 
+                                    className="bg-slate-700 text-white p-2 rounded-lg text-sm"
+                                >
+                                    {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+                                </select>
                             </div>
                         </div>
                         <p className="text-4xl font-extrabold text-green-400">{getSymbol(baseCurrency)}{totals.income}</p>
