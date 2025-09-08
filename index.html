@@ -303,11 +303,22 @@
                 const jsonText = result.candidates[0].content.parts[0].text;
                 const parsedTransactions = JSON.parse(jsonText);
               
-                for (const transaction of parsedTransactions) {
+                // --- NEW: BATCH WRITE LOGIC ---
+                // This is much more efficient and reliable than a loop.
+                const batch = window.firebase.writeBatch(db);
+                const transactionsCollectionRef = window.firebase.collection(db, `users/${userId}/transactions`);
+
+                parsedTransactions.forEach(transaction => {
                     if (transaction.description && transaction.amount > 0) {
-                        await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/transactions`), transaction);
+                        const newTransactionRef = window.firebase.doc(transactionsCollectionRef);
+                        batch.set(newTransactionRef, transaction);
                     }
-                }
+                });
+
+                // Commit the batch write to the database
+                await batch.commit();
+                // --- END OF BATCH WRITE LOGIC ---
+
                 setMessage(`Successfully added ${parsedTransactions.length} transactions!`);
                 setPastedText('');
 
