@@ -143,19 +143,51 @@
         const handleAnalyzeStatement = async () => {
             if (!statementText.trim()) { setError('Please paste your mortgage statement details.'); return; }
             setError(''); setInsights(null); setIsAnalyzing(true);
-            try {
+             try {
                 const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484"; // Your API Key
-                const prompt = `You are a professional financial advisor specializing in mortgages. Analyze the following mortgage statement data. Provide a detailed, actionable plan for the user to pay off their mortgage early, including specific strategies like the snowball or avalanche method, and explain how a small extra payment can make a big difference over time. Use a clear, encouraging tone.\n\nMortgage Statement Data:\n${statementText}`;
-                const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
+                const prompt = `Extract transaction data from the following text and return ONLY a valid JSON array. Do not include any other text or explanations. For each object, include: 'date' (YYYY-MM-DD), 'description' (string), 'amount' (number), 'type' ('Income', 'Personal Expense', or 'Business Expense'), 'category' (choose from: ${Object.values(categories).flat().join(', ')}), and 'currency' (e.g., 'USD', 'AED', 'EUR').\n\nText: ${pastedText}`;
+                const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
-                if (!response.ok) { throw new Error(`API request failed with status ${response.status}`); }
+                if (!response.ok) { throw new Error('API request failed'); }
+
                 const result = await response.json();
-                const aiResponse = result.candidates[0].content.parts[0].text;
-                setInsights(aiResponse.replace(/\*\*/g, ''));
-            } catch (error) { console.error("Error analyzing statement:", error); setError("An error occurred while fetching insights. Please try again later.");
-            } finally { setIsAnalyzing(false); }
-        };
+                
+                // --- NEW, SMARTER PARSING LOGIC ---
+                let jsonText = result.candidates[0].content.parts[0].text;
+                
+                // Find the start of the JSON array '[' and the end ']'
+                const startIndex = jsonText.indexOf('[');
+                const endIndex = jsonText.lastIndexOf(']');
+                
+                if (startIndex === -1 || endIndex === -1) {
+                    throw new Error("AI response did not contain a valid JSON array.");
+                }
+
+                // Extract only the JSON part of the string
+                const jsonArrayString = jsonText.substring(startIndex, endIndex + 1);
+                const parsedTransactions = JSON.parse(jsonArrayString);
+                // --- END OF SMARTER PARSING LOGIC ---
+
+                const batch = window.firebase.writeBatch(db);
+                const transactionsCollectionRef = window.firebase.collection(db, `users/${userId}/transactions`);
+                parsedTransactions.forEach(transaction => {
+                    if (transaction.description && transaction.amount > 0) {
+                        const newTransactionRef = window.firebase.doc(transactionsCollectionRef);
+                        batch.set(newTransactionRef, transaction);
+                    }
+                });
+                await batch.commit();
+                setMessage(`Successfully added ${parsedTransactions.length} transactions!`);
+                setPastedText('');
+            } catch (error) {
+                console.error("Error during parsing:", error);
+                setMessage("Failed to parse text. Please check the format and try again.");
+            } finally {
+                setPendingTransactions([]);
+                setIsParsing(false);
+            }
 
         return (
             <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1">
