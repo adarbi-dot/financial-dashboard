@@ -126,7 +126,7 @@
                 const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484"; // Your API Key
                 const prompt = `You are a professional financial advisor specializing in mortgages. Analyze the following mortgage statement data. Provide a detailed, actionable plan for the user to pay off their mortgage early, including specific strategies like the snowball or avalanche method, and explain how a small extra payment can make a big difference over time. Use a clear, encouraging tone.\n\nMortgage Statement Data:\n${statementText}`;
                 const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
                 if (!response.ok) { throw new Error(`API request failed with status ${response.status}`); }
                 const result = await response.json();
@@ -344,7 +344,7 @@
                 const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
                 const prompt = `You are an expert data extractor. Extract transaction data from the following text and return ONLY a valid JSON array. Do not include any other text or explanations. For each object, include: 'date' (YYYY-MM-DD), 'description' (string), 'amount' (number), 'type' (must be 'Income', 'Personal Expense', or 'Business Expense'), 'category' (choose from: ${Object.values(categories).flat().join(', ')}), and 'currency' (This is very important. Look for currency symbols like $ or currency codes like AED, EUR, USD, etc., next to the amount. If you find one, use that code. If no currency is specified, default to 'USD'.). Text: ${pastedText}`;
                 const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
                 if (!response.ok) { throw new Error('API request failed'); }
                 const result = await response.json();
@@ -386,7 +386,7 @@
                 const financialDataSummary = `Total Income: ${totals.income} ${baseCurrency}, Total Expenses: ${totals.expense} ${baseCurrency}, Recent Transactions: ${JSON.stringify(transactions.slice(0, 5))}`;
                 const prompt = `You are an expert financial coach. Based on the user's question and their financial data, provide clear, actionable advice. Analyze their spending, income, and goals to help them manage debt or improve their financial health.\n\nFinancial Data Summary: ${financialDataSummary}\n\nConversation History:\n${newChatHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}\n\nYour Answer:`;
                 const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
                 const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
                 if (!response.ok) { throw new Error('API request failed'); }
                 const result = await response.json();
