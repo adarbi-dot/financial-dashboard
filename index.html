@@ -50,7 +50,7 @@
     const getSymbol = (code ) => currencies.find(c => c.code === code)?.symbol || '';
 
 // --- END OF PART 1 ---
-     // --- CHILD COMPONENTS ---
+    // --- CHILD COMPONENTS ---
     const MortgageCalculator = () => {
       const [principal, setPrincipal] = useState(250000);
       const [interestRate, setInterestRate] = useState(4.5);
@@ -239,7 +239,7 @@
     };
 
 // --- END OF PART 2 ---
-     // --- MAIN DASHBOARD COMPONENT ---
+    // --- MAIN DASHBOARD COMPONENT ---
     const FinancialDashboard = ({ user, db, auth }) => {
         // State for data
         const [transactions, setTransactions] = useState([]);
@@ -366,9 +366,8 @@
                 setMessage(`Successfully imported ${parsedTransactions.length} transactions!`);
                 setPastedText('');
             } catch (error) {
-    console.error("Error during parsing:", error);
-    setMessage(`Import Error: ${error.message}`); 
-}
+                console.error("Error during parsing:", error);
+                setMessage(`Import Error: ${error.message}`);
             } finally {
                 setPendingTransactions([]);
                 setIsParsing(false);
@@ -585,5 +584,3 @@
   </script>
 </body>
 </html>
-
-
