@@ -235,45 +235,35 @@
                 }
                 setIsParsing(true);
                 setMessage('Analyzing with AI...');
-                  const tempId = `pending-${Date.now()}`;
+                const tempId = `pending-${Date.now()}`;
                 setPendingTransactions([{ id: tempId, description: 'Analyzing your pasted text...' }]);
+
                 try {
                     const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
-                    const prompt = `
-                    You are a highly accurate data extraction tool. Your ONLY job is to convert the user's text into a valid JSON array of financial transactions.     
-                    **RULES:**
-                    1.  **Currency is CRITICAL.** You MUST identify the currency for each transaction. If the user provides a currency symbol or code (e.g., $, AED, £, EUR), you MUST use the corresponding three-letter code ('USD', 'AED', 'GBP', 'EUR').
-                    2.  **Date is CRITICAL.** You MUST provide a valid date in YYYY-MM-DD format. If no date is provided for a transaction, exclude it from the output.
-                    3.  **Amount is CRITICAL.** The 'amount' field must be a number only, with no symbols.
-                    4.  **NEVER** output any text, explanation, or conversation. Your entire response must be ONLY the JSON array. 
-                    **AVAILABLE CATEGORIES:**
-                    - Personal Expense: ${categories['Personal Expense'].join(', ')}
-                    - Business Expense: ${categories['Business Expense'].join(', ')}
-                    - Income: ${categories['Income'].join(', ')}
-             
-                    **USER'S TEXT TO PARSE:**
-                    ---
-                    ${pastedText}
-                    ---
-                    `;
+                    const prompt = `You are a data extraction tool. Convert the user's text into a valid JSON array of transactions. Rules: 1. Use three-letter currency codes (USD, AED, etc.). 2. Use YYYY-MM-DD format for dates. 3. Amount must be a number. 4. ONLY output the JSON array. Available Categories: Personal Expense: ${categories['Personal Expense'].join(', ')}. Business Expense: ${categories['Business Expense'].join(', ')}. Income: ${categories['Income'].join(', ')}. USER'S TEXT: --- ${pastedText} ---`;
+                    
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] } )
                     });
+
                     if (!response.ok) {
                         throw new Error(`AI API Error: ${response.statusText}`);
                     }
+
                     const result = await response.json();
                     const rawJsonText = result.candidates[0].content.parts[0].text;
-                    // Robust JSON parsing
+                    
                     const match = rawJsonText.match(/\[.*\]/s);
                     if (!match) {
                         throw new Error("AI did not return a valid JSON array.");
                     }
                     const parsedTransactions = JSON.parse(match[0]);
+                    
                     const batch = firebase.firestore().batch();
                     const transactionsCollectionRef = firebase.firestore().collection(`users/${user.uid}/transactions`);
+
                     let transactionsAdded = 0;
                     parsedTransactions.forEach(transaction => {
                         if (transaction.date && !isNaN(new Date(transaction.date))) {
@@ -282,9 +272,11 @@
                             transactionsAdded++;
                         }
                     });
+
                     await batch.commit();
                     setMessage(`Successfully imported ${transactionsAdded} transactions!`);
                     setPastedText('');
+
                 } catch (error) {
                     console.error("Error during import:", error);
                     setMessage(`Import Error: ${error.message}`);
@@ -316,6 +308,9 @@
                                     </div>
                                 </div>
                                 <div className="flex items-center space-x-4">
+                                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        Connect Bank
+                                    </button>
                                     <button onClick={handleSignOut} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                                         Sign Out
                                     </button>
@@ -779,5 +774,5 @@
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97d0c3b904e4c71e',t:'MTc1NzUyNjU5My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97d0e8e63556c71e',t:'MTc1NzUyODExNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
