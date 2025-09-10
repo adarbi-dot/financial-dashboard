@@ -1,621 +1,581 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Financial Wellness Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap">
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-    window.firebase = { initializeApp, getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, getFirestore, collection, onSnapshot, addDoc, doc, deleteDoc, setDoc, query, updateDoc, writeBatch };
-  </script>
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .chat-bubble { animation: fadeIn 0.3s ease-in-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(5px ); } to { opacity: 1; transform: translateY(0); } }
-  </style>
-</head>
-<body class="bg-slate-900 font-inter text-gray-200">
-  <div id="root"></div>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clarity - Financial Wellness Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    
+    <!-- React and Babel -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-  <script type="text/babel">
-    const { useState, useEffect, useMemo, useRef } = React;
-
-    // --- ICONS ---
-    const DollarSign = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>;
-    const Loader2 = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>;
-    const Trash2 = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>;
-    const Sparkles = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 1v4m5.66-1.66l-2.83 2.83M23 12h-4m-1.66 5.66l-2.83-2.83M12 23v-4m-5.66 1.66l2.83-2.83M1 12h4m1.66-5.66l2.83 2.83"></path></svg>;
-    const Landmark = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="3" y1="22" x2="21" y2="22"></line><line x1="6" y1="18" x2="6" y2="10"></line><line x1="10" y1="18" x2="10" y2="4"></line><line x1="14" y1="18" x2="14" y2="12"></line><line x1="18" y1="18" x2="18" y2="2"></line><polygon points="2 22 2 12 12 2 22 12 22 22"></polygon></svg>;
-    const Wallet = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M21 12V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-1"></path><path d="M1 12h22"></path></svg>;
-    const BarChart = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>;
-    const Edit = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>;
-    const LogOut = ({ className } ) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>;
-
-    // --- HELPERS & CONFIG ---
-    const exchangeRates = { 'USD': 1, 'AED': 3.67, 'EUR': 0.92, 'GBP': 0.79 };
-    const categories = {
-      'Personal Expense': ['Groceries', 'Rent', 'Utilities', 'Entertainment', 'Transportation', 'Subscriptions', 'Other Personal'],
-      'Business Expense': ['Software', 'Freelance Tools', 'Co-working Space', 'Marketing', 'Education', 'Other Business'],
-      'Income': ['Client Work', 'Bonus', 'Tips', 'Salary', 'Other Income']
-    };
-    const currencies = [ { code: 'USD', symbol: '$' }, { code: 'AED', symbol: 'د.إ' }, { code: 'EUR', symbol: '€' }, { code: 'GBP', symbol: '£' } ];
-    const getSymbol = (code ) => currencies.find(c => c.code === code)?.symbol || '';
-
-// --- END OF PART 1 ---
-      // --- CHILD COMPONENTS ---
-    const MortgageCalculator = () => {
-      const [principal, setPrincipal] = useState(250000);
-      const [interestRate, setInterestRate] = useState(4.5);
-      const [loanTerm, setLoanTerm] = useState(30);
-      const [extraPayment, setExtraPayment] = useState(0);
-      const [results, setResults] = useState(null);
-
-      const calculateMortgage = () => {
-        const P = parseFloat(principal);
-        const R = parseFloat(interestRate) / 100 / 12;
-        const N = parseFloat(loanTerm) * 12;
-        const extraPmt = parseFloat(extraPayment) || 0;
-        
-        if (P <= 0 || R <= 0 || N <= 0) { setResults(null); return; }
-
-        const monthlyPayment = P * (R * Math.pow(1 + R, N)) / (Math.pow(1 + R, N) - 1);
-        
-        let totalInterestPaid = (monthlyPayment * N) - P;
-        
-        let totalInterestPaidWithExtra = 0;
-        let termWithExtra = 0;
-        let tempPrincipalExtra = P;
-        if (extraPmt > 0) {
-            let tempMonthsExtra = 0;
-            while (tempPrincipalExtra > 0) {
-              const interestPortion = tempPrincipalExtra * R;
-              const principalPortion = (monthlyPayment + extraPmt) - interestPortion;
-              tempPrincipalExtra -= principalPortion;
-              totalInterestPaidWithExtra += interestPortion;
-              tempMonthsExtra++;
-              if (tempMonthsExtra > N * 2) break; // Safety break
-            }
-            termWithExtra = tempMonthsExtra;
-        } else {
-            totalInterestPaidWithExtra = totalInterestPaid;
-            termWithExtra = N;
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap">
+    <style>
+        body {
+            font-family: 'DM Sans', sans-serif;
         }
+        .gradient-text {
+            background: linear-gradient(to right, #38bdf8, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-hover {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+        .progress-bar {
+            background: linear-gradient(90deg, #38bdf8, #a78bfa);
+        }
+        .section-content {
+            display: none;
+        }
+        .section-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-300">
+    <div id="root"></div>
 
-        setResults({
-          monthlyPayment: monthlyPayment.toFixed(2),
-          totalInterestPaid: totalInterestPaid.toFixed(2),
-          totalInterestSaved: (totalInterestPaid - totalInterestPaidWithExtra).toFixed(2),
-          totalMonthsSaved: N - termWithExtra,
-          termWithExtra: Math.ceil(termWithExtra / 12)
-        });
-      };
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
 
-      return (
-        <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1">
-          <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Landmark className="w-7 h-7 mr-2" />Mortgage Payoff Calculator</h2>
-          <div className="space-y-4">
-            <div><label className="block text-sm font-medium mb-1 text-slate-400">Principal ($)</label><input type="number" value={principal} onChange={(e) => setPrincipal(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-            <div><label className="block text-sm font-medium mb-1 text-slate-400">Interest Rate (%)</label><input type="number" value={interestRate} onChange={(e) => setInterestRate(e.target.value)} step="0.01" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-            <div><label className="block text-sm font-medium mb-1 text-slate-400">Loan Term (Years)</label><input type="number" value={loanTerm} onChange={(e) => setLoanTerm(e.target.value)} className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-            <div><label className="block text-sm font-medium mb-1 text-slate-400">Extra Monthly Payment ($)</label><input type="number" value={extraPayment} onChange={(e) => setExtraPayment(e.target.value)} step="0.01" className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"/></div>
-            <button onClick={calculateMortgage} className="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-lg">Calculate Mortgage</button>
-            {results && (<div className="mt-4 p-4 bg-slate-700 rounded-lg space-y-2"><p className="font-semibold text-green-400">Monthly Payment: ${results.monthlyPayment}</p><p className="text-sm text-slate-300">Total Interest (without extra): ${results.totalInterestPaid}</p><p className="text-sm text-slate-300">New Term: {results.termWithExtra} years</p><p className="font-bold text-lg text-green-300">Total Interest Saved: ${results.totalInterestSaved}</p><p className="font-bold text-lg text-green-300">Months Saved: {results.totalMonthsSaved}</p></div>)}
-          </div>
-        </div>
-      );
-    };
-
-    const AiMortgageInsights = () => {
-        const [statementText, setStatementText] = useState('');
-        const [insights, setInsights] = useState(null);
-        const [isAnalyzing, setIsAnalyzing] = useState(false);
-        const [error, setError] = useState('');
-
-        const handleAnalyzeStatement = async () => {
-            if (!statementText.trim()) { setError('Please paste your mortgage statement details.'); return; }
-            setError(''); setInsights(null); setIsAnalyzing(true);
-            try {
-                const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484"; // Your API Key
-                const prompt = `You are a professional financial advisor specializing in mortgages. Analyze the following mortgage statement data. Provide a detailed, actionable plan for the user to pay off their mortgage early, including specific strategies like the snowball or avalanche method, and explain how a small extra payment can make a big difference over time. Use a clear, encouraging tone.\n\nMortgage Statement Data:\n${statementText}`;
-                const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
-                if (!response.ok) { throw new Error(`API request failed with status ${response.status}`); }
-                const result = await response.json();
-                const aiResponse = result.candidates[0].content.parts[0].text;
-                setInsights(aiResponse.replace(/\*\*/g, ''));
-            } catch (error) { console.error("Error analyzing statement:", error); setError("An error occurred while fetching insights. Please try again later.");
-            } finally { setIsAnalyzing(false); }
+        // --- Helper Functions and Data ---
+        const exchangeRates = { 'USD': 1, 'AED': 3.67, 'EUR': 1.08, 'GBP': 1.25 };
+        const categories = {
+            'Personal Expense': ['Groceries', 'Rent', 'Utilities', 'Entertainment', 'Transportation', 'Subscriptions', 'Other Personal'],
+            'Business Expense': ['Software', 'Freelance Tools', 'Co-working Space', 'Marketing', 'Education', 'Other Business'],
+            'Income': ['Client Work', 'Bonus', 'Tips', 'Salary', 'Other Income']
         };
+        const currencies = [ { code: 'USD', symbol: '$' }, { code: 'AED', symbol: 'د.إ' }, { code: 'EUR', symbol: '€' }, { code: 'GBP', symbol: '£' } ];
+        const getSymbol = (code) => currencies.find(c => c.code === code)?.symbol || '';
+        const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-        return (
-            <div className="bg-slate-800 rounded-2xl p-6 shadow-xl lg:col-span-1">
-                <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><Sparkles className="w-7 h-7 mr-2" />AI Mortgage Insights</h2>
-                <div className="space-y-4">
-                    <p className="text-sm text-slate-400">Paste your mortgage statement details below for personalized payoff strategies.</p>
-                    <textarea value={statementText} onChange={(e) => setStatementText(e.target.value)} rows="6" placeholder="Paste your mortgage principal, interest rate, and term here..." className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    <button onClick={handleAnalyzeStatement} disabled={isAnalyzing} className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isAnalyzing ? 'bg-blue-800 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>{isAnalyzing ? ( <Loader2 className="animate-spin inline-block mr-2" /> ) : ( 'Get Mortgage Insights' )}</button>
-                    {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-                    {insights && (<div className="mt-4 p-4 bg-slate-700 rounded-lg space-y-2"><p className="text-green-400 font-semibold">Your Personalized Plan:</p><p className="whitespace-pre-wrap text-slate-300">{insights}</p></div>)}
-                </div>
-            </div>
-        );
-    };
+        // --- Login Page Component ---
+        const LoginPage = ({ auth, setError, setMessage }) => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
 
-    const SpendingChart = ({ transactions, baseCurrency }) => {
-        const canvasRef = useRef(null);
-        const chartRef = useRef(null);
-        const categorySpending = useMemo(() => {
-            const spending = {};
-            transactions.forEach(t => {
-                if (t.type !== 'Income') {
-                    const convertedAmount = t.amount * (exchangeRates[t.currency] / exchangeRates[baseCurrency]);
-                    spending[t.category] = (spending[t.category] || 0) + convertedAmount;
-                }
-            });
-            return spending;
-        }, [transactions, baseCurrency]);
-
-        useEffect(() => {
-            if (!canvasRef.current) return;
-            const ctx = canvasRef.current.getContext('2d');
-            if (chartRef.current) { chartRef.current.destroy(); }
-            if (Object.keys(categorySpending).length === 0) { return; }
-            chartRef.current = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: Object.keys(categorySpending),
-                    datasets: [{ data: Object.values(categorySpending), backgroundColor: ['#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#ef4444', '#f97316', '#eab308', '#22c55e', '#10b981'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: '#94a3b8' } }, tooltip: { callbacks: { label: (context) => `${context.label || ''}: ${getSymbol(baseCurrency)}${context.parsed.toFixed(2)}` } } } }
-            });
-        }, [categorySpending, baseCurrency]);
-
-        return (
-            <div className="bg-slate-800 rounded-2xl p-6 shadow-xl flex-grow flex flex-col items-center">
-                <h2 className="text-2xl font-bold mb-6 text-gray-100 flex items-center"><BarChart className="w-7 h-7 mr-2"/>Spending Breakdown</h2>
-                <div className="relative w-full h-80"><canvas ref={canvasRef}></canvas></div>
-            </div>
-        );
-    };
-
-    // --- AUTHENTICATION PAGE ---
-    const LoginPage = ({ auth }) => {
-        const [isLogin, setIsLogin] = useState(true);
-        const [email, setEmail] = useState('');
-        const [password, setPassword] = useState('');
-        const [error, setError] = useState('');
-        const [isLoading, setIsLoading] = useState(false);
-
-        const handleAuthAction = async (e) => {
-            e.preventDefault();
-            if (!email || !password) { setError('Please enter both email and password.'); return; }
-            setError(''); setIsLoading(true);
-            try {
-                if (isLogin) {
-                    await window.firebase.signInWithEmailAndPassword(auth, email, password);
-                } else {
-                    await window.firebase.createUserWithEmailAndPassword(auth, email, password);
-                }
-            } catch (err) {
-                if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-                    setError('Invalid email or password.');
-                } else if (err.code === 'auth/email-already-in-use') {
-                    setError('An account already exists with this email. Please log in.');
-                } else {
-                    setError('An error occurred. Please try again.');
-                    console.error("Firebase Auth Error:", err);
-                }
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-slate-900 p-4">
-                <div className="w-full max-w-md p-8 space-y-6 bg-slate-800 rounded-2xl shadow-2xl">
-                    <div className="text-center">
-                        <h1 className="text-4xl font-extrabold text-white">Financial Dashboard</h1>
-                        <p className="text-slate-400 mt-2">{isLogin ? 'Welcome back, log in to continue' : 'Create an account to get started'}</p>
-                    </div>
-                    <form onSubmit={handleAuthAction} className="space-y-6">
-                        <div><label className="block text-sm font-medium mb-1 text-slate-400">Email Address</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="you@example.com" /></div>
-                        <div><label className="block text-sm font-medium mb-1 text-slate-400">Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-700 border border-slate-600 text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="••••••••" /></div>
-                        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
-                        <div><button type="submit" disabled={isLoading} className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isLoading ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>{isLoading ? <Loader2 className="animate-spin inline-block"/> : (isLogin ? 'Login' : 'Sign Up')}</button></div>
-                    </form>
-                    <p className="text-center text-sm text-slate-400">{isLogin ? "Don't have an account? " : "Already have an account? "}<button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="font-medium text-blue-400 hover:underline">{isLogin ? 'Sign Up' : 'Login'}</button></p>
-                </div>
-            </div>
-        );
-    };
-
-// --- END OF PART 2 ---
-   // --- MAIN DASHBOARD COMPONENT ---
-    const FinancialDashboard = ({ user, db, auth }) => {
-        // State for data
-        const [transactions, setTransactions] = useState([]);
-        const [goals, setGoals] = useState([]);
-        const [budgets, setBudgets] = useState({});
-        
-        // State for forms
-        const [date, setDate] = useState('');
-        const [description, setDescription] = useState('');
-        const [amount, setAmount] = useState('');
-        const [type, setType] = useState('Personal Expense');
-        const [category, setCategory] = useState(categories['Personal Expense'][0]);
-        const [currency, setCurrency] = useState('USD');
-        const [editingTransactionId, setEditingTransactionId] = useState(null);
-        
-        // State for UI feedback
-        const [message, setMessage] = useState('');
-        const [baseCurrency, setBaseCurrency] = useState(localStorage.getItem('userBaseCurrency') || 'USD');
-        const userId = user.uid;
-
-        // State for Goals form
-        const [newGoalName, setNewGoalName] = useState('');
-        const [newGoalTarget, setNewGoalTarget] = useState('');
-
-        // State for Budgets form
-        const [budgetInput, setBudgetInput] = useState('');
-        const [selectedBudgetCategory, setSelectedBudgetCategory] = useState('Groceries');
-
-        // State and functions for AI features
-        const [pastedText, setPastedText] = useState('');
-        const [isParsing, setIsParsing] = useState(false);
-        const [chatHistory, setChatHistory] = useState([]);
-        const [chatInput, setChatInput] = useState('');
-        const [isChatting, setIsChatting] = useState(false);
-        const chatEndRef = useRef(null);
-
-        // State for Optimistic UI
-        const [pendingTransactions, setPendingTransactions] = useState([]);
-
-        // --- DATA HANDLING & FIRESTORE ---
-        useEffect(() => {
-            if (!db || !userId) return;
-            const listeners = [];
-            const transactionsRef = window.firebase.collection(db, `users/${userId}/transactions`);
-            const qTransactions = window.firebase.query(transactionsRef);
-            listeners.push(window.firebase.onSnapshot(qTransactions, (snapshot) => { 
-                const fetchedTransactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                fetchedTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-                setTransactions(fetchedTransactions);
-            }, (error) => console.error("Error fetching transactions:", error)));
-            
-            const goalsRef = window.firebase.collection(db, `users/${userId}/goals`);
-            listeners.push(window.firebase.onSnapshot(goalsRef, (snapshot) => { setGoals(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))); }, (error) => console.error("Error fetching goals:", error)));
-            
-            const budgetsRef = window.firebase.collection(db, `users/${userId}/budgets`);
-            listeners.push(window.firebase.onSnapshot(budgetsRef, (snapshot) => { const fetchedBudgets = {}; snapshot.docs.forEach(doc => { fetchedBudgets[doc.id] = doc.data().amount; }); setBudgets(fetchedBudgets); }, (error) => console.error("Error fetching budgets:", error)));
-            
-            return () => listeners.forEach(unsubscribe => unsubscribe());
-        }, [db, userId]);
-
-        // --- CRUD FUNCTIONS ---
-        const handleAddOrUpdateTransaction = async (e) => {
-            e.preventDefault();
-            if (!date || !description || !amount || parseFloat(amount) <= 0) { setMessage('Please fill out all fields.'); return; }
-            const transactionData = { date, description, amount: parseFloat(amount), type, category, currency };
-            try {
-                if (editingTransactionId) {
-                    await window.firebase.updateDoc(window.firebase.doc(db, `users/${userId}/transactions`, editingTransactionId), transactionData);
-                    setMessage('Transaction updated!');
-                    setEditingTransactionId(null);
-                } else {
-                    await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/transactions`), transactionData);
-                    setMessage('Transaction added!');
-                }
-                setDate('');
-                setDescription('');
-                setAmount('');
-                setCurrency('USD');
-                setType('Personal Expense');
-                setCategory(categories['Personal Expense'][0]);
-            } catch (err) {
-                console.error(err);
-                setMessage('Failed to save transaction.');
-            }
-        };
-        const handleDeleteTransaction = async (id) => { try { await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/transactions`, id)); setMessage("Transaction deleted."); } catch (err) { console.error(err); setMessage("Failed to delete transaction."); } };
-        const handleEditTransaction = (t) => { setEditingTransactionId(t.id); setDate(t.date); setDescription(t.description); setAmount(t.amount); setType(t.type); setCategory(t.category); setCurrency(t.currency); };
-        const handleAddGoal = async (e) => { e.preventDefault(); if (!newGoalName.trim() || !newGoalTarget || parseFloat(newGoalTarget) <= 0) { setMessage('Please enter a valid goal.'); return; } try { await window.firebase.addDoc(window.firebase.collection(db, `users/${userId}/goals`), { name: newGoalName, targetAmount: parseFloat(newGoalTarget), currentAmount: 0 }); setMessage('Goal added!'); setNewGoalName(''); setNewGoalTarget(''); } catch (err) { console.error(err); setMessage('Failed to add goal.'); } };
-        const handleDeleteGoal = async (id) => { try { await window.firebase.deleteDoc(window.firebase.doc(db, `users/${userId}/goals`, id)); setMessage("Goal deleted."); } catch (err) { console.error(err); setMessage("Failed to delete goal."); } };
-        const handleAddBudget = async (e) => { e.preventDefault(); if (!selectedBudgetCategory || !budgetInput || parseFloat(budgetInput) <= 0) { setMessage('Please enter a valid budget.'); return; } try { await window.firebase.setDoc(window.firebase.doc(db, `users/${userId}/budgets`, selectedBudgetCategory), { amount: parseFloat(budgetInput) }); setMessage(`Budget for ${selectedBudgetCategory} set!`); setBudgetInput(''); } catch (err) { console.error(err); setMessage('Failed to set budget.'); } };
-        const handleSignOut = async () => { try { await window.firebase.signOut(auth); } catch (error) { console.error("Error signing out:", error); } };
-
-        // --- AI & PARSING FUNCTIONS ---
-        const handleParseText = async () => {
-            if (!pastedText.trim()) { setMessage('Please paste text to parse.'); return; }
-            const optimisticId = `pending-${Date.now()}`;
-            const ghostTransaction = { id: optimisticId, description: "Analyzing with AI, please wait...", isPending: true };
-            setPendingTransactions([ghostTransaction]);
-            setIsParsing(true);
-            setMessage('Importing transactions...');
-            try {
-                const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
-                const prompt = `You are an expert data extractor. Extract transaction data from the following text and return ONLY a valid JSON array. Do not include any other text or explanations. For each object, include: 'date' (YYYY-MM-DD), 'description' (string), 'amount' (number), 'type' (must be 'Income', 'Personal Expense', or 'Business Expense'), 'category' (choose from: ${Object.values(categories).flat().join(', ')}), and 'currency' (This is very important. Look for currency symbols like $ or currency codes like AED, EUR, USD, etc., next to the amount. If you find one, use that code. If no currency is specified, default to 'USD'.). Text: ${pastedText}`;
-                const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
-                if (!response.ok) { throw new Error('API request failed'); }
-                const result = await response.json();
-                let jsonText = result.candidates[0].content.parts[0].text;
-                const startIndex = jsonText.indexOf('[');
-                const endIndex = jsonText.lastIndexOf(']');
-                if (startIndex === -1 || endIndex === -1) { throw new Error("AI response did not contain a valid JSON array."); }
-                const jsonArrayString = jsonText.substring(startIndex, endIndex + 1);
-                const parsedTransactions = JSON.parse(jsonArrayString);
-                const batch = window.firebase.writeBatch(db);
-                const transactionsCollectionRef = window.firebase.collection(db, `users/${userId}/transactions`);
-                parsedTransactions.forEach(transaction => {
-                    if (transaction.description && transaction.amount > 0 && transaction.date) {
-                        const newTransactionRef = window.firebase.doc(transactionsCollectionRef);
-                        batch.set(newTransactionRef, transaction);
+            const handleAuthAction = async (e) => {
+                e.preventDefault();
+                setError('');
+                try {
+                    if (isLogin) {
+                        await firebase.auth().signInWithEmailAndPassword(email, password);
+                    } else {
+                        await firebase.auth().createUserWithEmailAndPassword(email, password);
                     }
-                });
-                await batch.commit();
-                setMessage(`Successfully imported ${parsedTransactions.length} transactions!`);
-                setPastedText('');
-            } catch (error) {
-                console.error("Error during parsing:", error);
-                setMessage(`Import Error: ${error.message}`);
-            } finally {
-                setPendingTransactions([]);
-                setIsParsing(false);
-            }
-        };
-
-        const handleSendMessage = async () => {
-            if (isChatting || !chatInput.trim()) return;
-            const userMessage = { role: 'user', content: chatInput };
-            const newChatHistory = [...chatHistory, userMessage];
-            setChatHistory(newChatHistory);
-            setChatInput('');
-            setIsChatting(true);
-            try {
-                const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
-                const financialDataSummary = `Total Income: ${totals.income} ${baseCurrency}, Total Expenses: ${totals.expense} ${baseCurrency}, Recent Transactions: ${JSON.stringify(transactions.slice(0, 5))}`;
-                const prompt = `You are an expert financial coach. Based on the user's question and their financial data, provide clear, actionable advice. Analyze their spending, income, and goals to help them manage debt or improve their financial health.\n\nFinancial Data Summary: ${financialDataSummary}\n\nConversation History:\n${newChatHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}\n\nYour Answer:`;
-                const payload = { contents: [{ role: 'user', parts: [{ text: prompt }] }] };
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload ) });
-                if (!response.ok) { throw new Error('API request failed'); }
-                const result = await response.json();
-                const aiMessage = { role: 'assistant', content: result.candidates[0].content.parts[0].text.replace(/\*\*/g, '') };
-                setChatHistory(prev => [...prev, aiMessage]);
-            } catch (error) { console.error("Error in chat:", error); const errorMessage = { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }; setChatHistory(prev => [...prev, errorMessage]);
-            } finally { setIsChatting(false); }
-        };
-
-        useEffect(() => { if (chatEndRef.current) { chatEndRef.current.scrollTop = chatEndRef.current.scrollHeight; } }, [chatHistory]);
-
-        // --- DERIVED STATE & FORMATTERS ---
-        const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
-        const totals = useMemo(() => { let totalIncome = 0, totalExpense = 0; const budgetProgress = {}; Object.keys(budgets).forEach(cat => { budgetProgress[cat] = { spent: 0, budget: budgets[cat] }; }); transactions.forEach(t => { const convertedAmount = t.amount * (exchangeRates[t.currency] / exchangeRates[baseCurrency]); if (t.type === 'Income') { totalIncome += convertedAmount; } else { totalExpense += convertedAmount; if (budgetProgress[t.category]) { budgetProgress[t.category].spent += convertedAmount; } } }); return { income: totalIncome.toFixed(2), expense: totalExpense.toFixed(2), net: (totalIncome - totalExpense).toFixed(2), budgetProgress }; }, [transactions, budgets, baseCurrency]);
-        const getGoalsProgress = (goal) => ((Math.min(goal.currentAmount / goal.targetAmount, 1)) * 100).toFixed(0);
-
-// --- END OF PART 3 ---
-                 return (
-            <div className="bg-slate-950 min-h-screen text-slate-300">
-                <div className="p-4 md:p-8 lg:p-12">
-                    <header className="flex justify-between items-center mb-8">
-                        <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-                        <button onClick={handleSignOut} className="flex items-center gap-2 text-slate-400 hover:text-white font-semibold py-2 px-4 rounded-lg transition-colors">
-                            <LogOut className="w-5 h-5" />
-                            <span>Sign Out</span>
-                        </button>
-                    </header>
-
-                    {message && (
-                        <div className="bg-blue-600/20 border border-blue-500/30 text-blue-200 p-4 rounded-lg shadow-md flex justify-between items-center mb-8">
-                            <p>{message}</p>
-                            <button onClick={() => setMessage('')} className="ml-4 font-bold">&times;</button>
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {/* Total Income Card */}
-                        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-medium text-slate-400">Total Income</h3>
-                                <div className="flex items-center">
-                                    <select 
-                                        value={baseCurrency} 
-                                        onChange={(e) => {
-                                            const newCurrency = e.target.value;
-                                            setBaseCurrency(newCurrency);
-                                            localStorage.setItem('userBaseCurrency', newCurrency);
-                                        }} 
-                                        className="bg-slate-800 text-slate-300 p-2 rounded-lg text-sm border border-slate-700 focus:ring-2 focus:ring-blue-500"
-                                    >
-                                        {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-                            <p className="text-4xl font-bold text-green-400 flex items-center">
-                                <span className="text-2xl mr-1">{getSymbol(baseCurrency)}</span>
-                                {totals.income}
-                            </p>
-                        </div>
-
-                        {/* Total Expenses Card */}
-                        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-medium text-slate-400">Total Expenses</h3><Wallet className="w-6 h-6 text-slate-500"/></div>
-                            <p className="text-4xl font-bold text-red-400 flex items-center">
-                                <span className="text-2xl mr-1">{getSymbol(baseCurrency)}</span>
-                                {totals.expense}
-                            </p>
-                        </div>
-
-                        {/* Net Flow Card */}
-                        <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                            <div className="flex items-center justify-between mb-4"><h3 className="text-lg font-medium text-slate-400">Net Flow</h3><BarChart className="w-6 h-6 text-slate-500"/></div>
-                            <p className="text-4xl font-bold text-blue-400 flex items-center">
-                                <span className="text-2xl mr-1">{getSymbol(baseCurrency)}</span>
-                                {totals.net}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
-                        <div className="lg:col-span-2 space-y-8">
-                            {/* Add/Edit Transaction Form */}
-                            <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                                <h2 className="text-2xl font-bold mb-6 text-white">{editingTransactionId ? 'Edit Transaction' : 'Add New Transaction'}</h2>
-                                <form onSubmit={handleAddOrUpdateTransaction} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div><label className="block text-sm font-medium mb-1 text-slate-400">Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500"/></div>
-                                    <div><label className="block text-sm font-medium mb-1 text-slate-400">Description</label><input type="text" value={description} onChange={(e) => setDescription(e.target.value)} required placeholder="e.g., Coffee" className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 placeholder-slate-500 focus:ring-2 focus:ring-blue-500"/></div>
-                                    <div><label className="block text-sm font-medium mb-1 text-slate-400">Amount</label><input type="number" value={amount} onChange={(e) => setAmount(e.target.value)} required step="0.01" placeholder="e.g., 4.50" className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 placeholder-slate-500 focus:ring-2 focus:ring-blue-500"/></div>
-                                    <div><label className="block text-sm font-medium mb-1 text-slate-400">Type</label><select value={type} onChange={(e) => { setType(e.target.value); setCategory(categories[e.target.value][0]); }} className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500">{Object.keys(categories).map(t => <option key={t} value={t}>{t}</option>)}</select></div>
-                                    <div><label className="block text-sm font-medium mb-1 text-slate-400">Category</label><select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500">{categories[type].map(c => <option key={c} value={c}>{c}</option>)}</select></div>
-                                    <div><label className="block text-sm font-medium mb-1 text-slate-400">Currency</label><select value={currency} onChange={(e) => setCurrency(e.target.value)} className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500">{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select></div>
-                                    <div className="md:col-span-2 mt-4 flex justify-between gap-4"><button type="submit" className="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700">{editingTransactionId ? 'Update' : 'Add'}</button>{editingTransactionId && (<button type="button" onClick={() => setEditingTransactionId(null)} className="w-full bg-red-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-red-700">Cancel</button>)}</div>
-                                </form>
-                            </div>
-
-                            {/* Smart Document Importer */}
-                            <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                                <h2 className="text-2xl font-bold mb-6 text-white">Smart Document Importer</h2>
-                                <div className="space-y-4">
-                                    <p className="text-sm text-slate-400">Paste transaction data from a text file or spreadsheet. The AI will automatically add them.</p>
-                                    <textarea value={pastedText} onChange={(e) => setPastedText(e.target.value)} rows="4" placeholder="Paste data here..." className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                                    <button onClick={handleParseText} disabled={isParsing} className={`w-full font-bold py-3 px-6 rounded-lg transition-colors shadow-lg ${isParsing ? 'bg-blue-800 text-slate-500 cursor-not-allowed' : 'bg-blue-600 text-white hover:bg-blue-700'}`}>{isParsing ? ( <Loader2 className="animate-spin inline-block mr-2"/> ) : ( 'Import Transactions' )}</button>
-                                </div>
-                            </div>
-
-                            {/* Transaction History */}
-                            <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                                <h2 className="text-2xl font-bold mb-6 text-white">Transaction History</h2>
-                                <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-slate-800">
-                                        <thead className="bg-slate-900"><tr><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Date</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Description</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Type</th><th className="p-3 text-left text-xs font-medium text-slate-400 uppercase tracking-wider">Amount</th><th className="p-3 text-center text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</th></tr></thead>
-                                        <tbody className="bg-slate-900 divide-y divide-slate-800">
-                                            {pendingTransactions.map(t => (
-                                                <tr key={t.id} className="opacity-50 animate-pulse">
-                                                    <td className="p-4 whitespace-nowrap text-slate-400">Just now...</td>
-                                                    <td className="p-4 text-slate-400">{t.description}</td>
-                                                    <td className="p-4 font-bold text-slate-400">Pending</td>
-                                                    <td className="p-4 font-bold text-slate-400">--</td>
-                                                    <td className="p-4 text-center"><Loader2 className="w-5 h-5 animate-spin inline-block text-slate-400"/></td>
-                                                </tr>
-                                            ))}
-                                            {transactions.length > 0 ? (transactions.map(t => (
-                                                <tr key={t.id} className="hover:bg-slate-800/50">
-                                                    <td className="p-4 whitespace-nowrap">{formatDate(t.date)}</td>
-                                                    <td className="p-4">{t.description}</td>
-                                                    <td className={`p-4 font-bold ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>{t.type}</td>
-                                                    <td className={`p-4 font-bold ${t.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>{getSymbol(t.currency)}{t.amount.toFixed(2)}</td>
-                                                    <td className="p-4 text-center"><div className="flex items-center justify-center gap-2"><button onClick={() => handleEditTransaction(t)} className="text-blue-400 hover:text-blue-500"><Edit className="w-5 h-5" /></button><button onClick={() => handleDeleteTransaction(t.id)} className="text-red-400 hover:text-red-500"><Trash2 className="w-5 h-5" /></button></div></td>
-                                                </tr>
-                                            ))) : ( pendingTransactions.length === 0 && <tr><td colSpan="5" className="py-6 text-center text-slate-400">No transactions yet.</td></tr>)}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            {/* AI Financial Coach */}
-                            <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                                <h2 className="text-2xl font-bold mb-6 text-white">AI Financial Coach</h2>
-                                <div className="flex flex-col h-96">
-                                    <div ref={chatEndRef} className="flex-1 overflow-y-auto p-4 bg-slate-800 rounded-lg mb-4 space-y-4">
-                                        {chatHistory.length === 0 && (<div className="text-center text-slate-400">Ask a question about your finances to get started.</div>)}
-                                        {chatHistory.map((message, index) => (<div key={index} className={`flex items-start gap-2 chat-bubble ${message.role === 'user' ? 'justify-end' : ''}`}><div className={`p-3 rounded-lg max-w-sm ${message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-700'}`}><p className="whitespace-pre-wrap">{message.content}</p></div></div>))}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <input type="text" value={chatInput} onChange={(e) => setChatInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !isChatting) handleSendMessage(); }} placeholder="e.g., How can I reduce my spending?" className="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" disabled={isChatting}/>
-                                        <button onClick={handleSendMessage} disabled={isChatting || !chatInput.trim()} className={`p-3 rounded-lg transition-colors shadow-lg ${isChatting || !chatInput.trim() ? 'bg-blue-800 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>{isChatting ? <Loader2 className="w-5 h-5 animate-spin"/> : "Ask"}</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="lg:col-span-1 space-y-8">
-                            <SpendingChart transactions={transactions} baseCurrency={baseCurrency} />
-                            <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-lg">
-                                <h2 className="text-2xl font-bold mb-6 text-white flex items-center"><Wallet className="w-7 h-7 mr-2"/>Savings Goals</h2>
-                                <div className="space-y-4">
-                                    {goals.length > 0 ? (goals.map(goal => (<div key={goal.id} className="bg-slate-800 p-4 rounded-lg"><div className="flex justify-between items-center mb-1"><span className="font-semibold">{goal.name}</span><span className="text-xs text-slate-400">{getSymbol(baseCurrency)}{goal.currentAmount || 0} / {getSymbol(baseCurrency)}{goal.targetAmount}</span></div><div className="w-full bg-slate-700 rounded-full h-2.5"><div className="bg-teal-500 h-2.5 rounded-full" style={{ width: `${getGoalsProgress(goal)}%` }}></div></div></div>))) : (<p className="text-center text-slate-400">No goals added yet.</p>)}
-                                    <form onSubmit={handleAddGoal} className="space-y-2">
-                                        <input type="text" value={newGoalName} onChange={(e) => setNewGoalName(e.target.value)} placeholder="Goal Name" className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 placeholder-slate-500"/>
-                                        <input type="number" value={newGoalTarget} onChange={(e) => setNewGoalTarget(e.target.value)} step="0.01" placeholder="Target Amount" className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 placeholder-slate-500"/>
-                                        <button type="submit" className="w-full bg-teal-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-teal-700">Add Goal</button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* This is the restored section */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-                        <MortgageCalculator />
-                        <AiMortgageInsights />
-                    </div>
-                </div>
-            </div>
-        );
-    };
-
-    // --- APP GATEKEEPER COMPONENT ---
-    const App = () => {
-        const [user, setUser] = useState(null);
-        const [auth, setAuth] = useState(null);
-        const [db, setDb] = useState(null);
-        const [isInitializing, setIsInitializing] = useState(true);
-        const [firebaseError, setFirebaseError] = useState(null);
-
-        useEffect(() => {
-            const firebaseConfig = {
-              apiKey: "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484",
-              authDomain: "financial-wellness-dashboard.firebaseapp.com",
-              projectId: "financial-wellness-dashboard",
-              storageBucket: "financial-wellness-dashboard.appspot.com",
-              messagingSenderId: "599378817258",
-              appId: "1:599378817258:web:95841307d6960986f36793",
-              measurementId: "G-4TZ4BKTP9B"
+                } catch (error) {
+                    setError(error.message);
+                }
             };
 
-            try {
-                const app = window.firebase.initializeApp(firebaseConfig);
-                const authInstance = window.firebase.getAuth(app);
-                const dbInstance = window.firebase.getFirestore(app);
-                setAuth(authInstance);
-                setDb(dbInstance);
+            return (
+                <div className="flex items-center justify-center min-h-screen bg-slate-950">
+                    <div className="w-full max-w-md p-8 space-y-6 bg-slate-900 rounded-2xl shadow-2xl">
+                        <div className="text-center">
+                            <h1 className="text-4xl font-extrabold gradient-text">Clarity</h1>
+                            <p className="text-slate-400 mt-2">{isLogin ? 'Welcome back, log in to continue' : 'Create an account to get started'}</p>
+                        </div>
+                        <form onSubmit={handleAuthAction} className="space-y-6">
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-slate-400">Email Address</label>
+                                <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500 text-white" placeholder="you@example.com" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-slate-400">Password</label>
+                                <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500 text-white" placeholder="••••••••" />
+                            </div>
+                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">{isLogin ? 'Login' : 'Sign Up'}</button>
+                        </form>
+                        <p className="text-center text-sm text-slate-400">{isLogin ? "Don't have an account? " : "Already have an account? "}<button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="font-medium text-blue-400 hover:underline">{isLogin ? 'Sign Up' : 'Login'}</button></p>
+                    </div>
+                </div>
+            );
+        };
 
-                const unsubscribe = window.firebase.onAuthStateChanged(authInstance, (currentUser) => {
-                    setUser(currentUser);
-                    setIsInitializing(false);
+        // --- Main Application Component ---
+        const FinancialDashboard = ({ user, db, auth }) => {
+            const [transactions, setTransactions] = useState([]);
+            const [baseCurrency, setBaseCurrency] = useState(localStorage.getItem('userBaseCurrency') || 'USD');
+            const [activeSection, setActiveSection] = useState('dashboard');
+            
+            useEffect(() => {
+                if (!db || !user) return;
+                const transactionsRef = firebase.firestore().collection(`users/${user.uid}/transactions`);
+                const unsubscribe = transactionsRef.onSnapshot((snapshot) => {
+                    const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    fetched.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    setTransactions(fetched);
                 });
-
                 return () => unsubscribe();
-            } catch (error) {
-                console.error("FATAL: Error initializing Firebase:", error);
-                setFirebaseError("Could not connect to Firebase. Please check the configuration.");
-                setIsInitializing(false);
+            }, [db, user]);
+
+            const totals = useMemo(() => {
+                let totalIncome = 0;
+                let totalExpense = 0;
+                transactions.forEach(t => {
+                    const rate = exchangeRates[t.currency] || 1;
+                    const baseRate = exchangeRates[baseCurrency] || 1;
+                    const convertedAmount = t.amount * (rate / baseRate);
+                    if (t.type === 'Income') totalIncome += convertedAmount;
+                    else totalExpense += convertedAmount;
+                });
+                return {
+                    income: totalIncome.toFixed(2),
+                    expense: totalExpense.toFixed(2),
+                    net: (totalIncome - totalExpense).toFixed(2)
+                };
+            }, [transactions, baseCurrency]);
+
+            const recentTransactions = transactions.slice(0, 5);
+            const userName = user.email.split('@')[0];
+            const currencySymbol = getSymbol(baseCurrency);
+
+            const categoryBreakdown = useMemo(() => {
+                const breakdown = {};
+                transactions.forEach(t => {
+                    if (t.type !== 'Income') {
+                        const rate = exchangeRates[t.currency] || 1;
+                        const baseRate = exchangeRates[baseCurrency] || 1;
+                        const convertedAmount = t.amount * (rate / baseRate);
+                        breakdown[t.subcategory] = (breakdown[t.subcategory] || 0) + convertedAmount;
+                    }
+                });
+                return Object.entries(breakdown)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 5);
+            }, [transactions, baseCurrency]);
+
+            const handleSignOut = async () => {
+                try {
+                    await firebase.auth().signOut();
+                } catch (error) {
+                    console.error('Error signing out:', error);
+                }
+            };
+
+            const showSection = (sectionId) => {
+                setActiveSection(sectionId);
+            };
+
+            return (
+                <div>
+                    {/* Navigation */}
+                    <nav className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-50">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <div className="flex justify-between items-center h-16">
+                                <div className="flex items-center">
+                                    <div className="text-2xl font-bold gradient-text">Clarity</div>
+                                </div>
+                                <div className="hidden md:block">
+                                    <div className="ml-10 flex items-baseline space-x-4">
+                                        <button onClick={() => showSection('dashboard')} className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection === 'dashboard' ? 'text-blue-400' : 'text-slate-300 hover:text-white'}`}>Dashboard</button>
+                                        <button onClick={() => showSection('transactions')} className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection === 'transactions' ? 'text-blue-400' : 'text-slate-300 hover:text-white'}`}>Transactions</button>
+                                        <button onClick={() => showSection('goals')} className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection === 'goals' ? 'text-blue-400' : 'text-slate-300 hover:text-white'}`}>Goals</button>
+                                        <button onClick={() => showSection('insights')} className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection === 'insights' ? 'text-blue-400' : 'text-slate-300 hover:text-white'}`}>Insights</button>
+                                    </div>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <button onClick={handleSignOut} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                        Sign Out
+                                    </button>
+                                    <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </nav>
+
+                    {/* Main Content Container */}
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        
+                        {/* Dashboard Section */}
+                        {activeSection === 'dashboard' && (
+                            <div>
+                                {/* Welcome Section */}
+                                <div className="mb-8">
+                                    <h1 className="text-3xl font-bold text-white mb-2">Welcome back, {userName}! 👋</h1>
+                                    <p className="text-slate-400">Here's your financial overview for this month</p>
+                                </div>
+
+                                {/* Stats Cards */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 card-hover">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-slate-400 text-sm font-medium">Net Balance</p>
+                                                <p className="text-2xl font-bold text-white">{currencySymbol}{totals.net}</p>
+                                                <p className={`text-sm mt-1 ${parseFloat(totals.net) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {parseFloat(totals.net) >= 0 ? 'Positive' : 'Negative'} balance
+                                                </p>
+                                            </div>
+                                            <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                                <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 card-hover">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-slate-400 text-sm font-medium">Total Expenses</p>
+                                                <p className="text-2xl font-bold text-white">{currencySymbol}{totals.expense}</p>
+                                                <p className="text-red-400 text-sm mt-1">{transactions.filter(t => t.type !== 'Income').length} transactions</p>
+                                            </div>
+                                            <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
+                                                <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 card-hover">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-slate-400 text-sm font-medium">Total Income</p>
+                                                <p className="text-2xl font-bold text-white">{currencySymbol}{totals.income}</p>
+                                                <p className="text-green-400 text-sm mt-1">{transactions.filter(t => t.type === 'Income').length} transactions</p>
+                                            </div>
+                                            <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                                <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 card-hover">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-slate-400 text-sm font-medium">Total Transactions</p>
+                                                <p className="text-2xl font-bold text-white">{transactions.length}</p>
+                                                <p className="text-purple-400 text-sm mt-1">All time</p>
+                                            </div>
+                                            <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                                <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Charts Section */}
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                                    {/* Spending Chart */}
+                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                                        <h3 className="text-xl font-semibold text-white mb-4">Recent Activity</h3>
+                                        <div className="h-48 flex items-center justify-center">
+                                            <div className="text-center">
+                                                <div className="text-4xl mb-4">📊</div>
+                                                <p className="text-slate-400">Visual charts coming soon!</p>
+                                                <p className="text-sm text-slate-500 mt-2">Your data is being tracked</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Category Breakdown */}
+                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                                        <h3 className="text-xl font-semibold text-white mb-4">Top Spending Categories</h3>
+                                        <div className="space-y-3">
+                                            {categoryBreakdown.length > 0 ? categoryBreakdown.map(([category, amount], index) => (
+                                                <div key={category} className="flex items-center justify-between">
+                                                    <div className="flex items-center space-x-3">
+                                                        <div className={`w-3 h-3 rounded-full ${
+                                                            index === 0 ? 'bg-blue-400' :
+                                                            index === 1 ? 'bg-purple-400' :
+                                                            index === 2 ? 'bg-pink-400' :
+                                                            index === 3 ? 'bg-green-400' : 'bg-yellow-400'
+                                                        }`}></div>
+                                                        <span className="text-sm text-slate-300">{category}</span>
+                                                    </div>
+                                                    <span className="text-sm text-white">{currencySymbol}{amount.toFixed(2)}</span>
+                                                </div>
+                                            )) : (
+                                                <div className="text-center py-8">
+                                                    <p className="text-slate-400">No expense data yet</p>
+                                                    <p className="text-sm text-slate-500 mt-1">Start adding transactions to see breakdown</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Recent Transactions */}
+                                <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xl font-semibold text-white">Recent Transactions</h3>
+                                        <button onClick={() => showSection('transactions')} className="text-blue-400 hover:text-blue-300 text-sm font-medium">View All</button>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                        {recentTransactions.length > 0 ? recentTransactions.map((transaction) => (
+                                            <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-slate-800">
+                                                <div className="flex items-center space-x-3">
+                                                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                                        transaction.type === 'Income' ? 'bg-green-500/20' : 'bg-red-500/20'
+                                                    }`}>
+                                                        <span className={`text-sm ${
+                                                            transaction.type === 'Income' ? 'text-green-400' : 'text-red-400'
+                                                        }`}>
+                                                            {transaction.type === 'Income' ? '💰' : 
+                                                             transaction.subcategory === 'Groceries' ? '🛒' :
+                                                             transaction.subcategory === 'Transportation' ? '🚗' :
+                                                             transaction.subcategory === 'Entertainment' ? '🎬' :
+                                                             transaction.subcategory === 'Utilities' ? '⚡' : '💳'}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-white">{transaction.description || transaction.subcategory}</p>
+                                                        <p className="text-sm text-slate-400">{formatDate(transaction.date)}</p>
+                                                    </div>
+                                                </div>
+                                                <span className={`font-medium ${
+                                                    transaction.type === 'Income' ? 'text-green-400' : 'text-red-400'
+                                                }`}>
+                                                    {transaction.type === 'Income' ? '+' : '-'}{getSymbol(transaction.currency)}{transaction.amount}
+                                                </span>
+                                            </div>
+                                        )) : (
+                                            <div className="text-center py-8">
+                                                <div className="text-4xl mb-4">📝</div>
+                                                <p className="text-slate-400">No transactions yet</p>
+                                                <p className="text-sm text-slate-500 mt-1">Your transactions will appear here</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Transactions Section */}
+                        {activeSection === 'transactions' && (
+                            <div>
+                                <div className="mb-8">
+                                    <h1 className="text-3xl font-bold text-white mb-2">All Transactions</h1>
+                                    <p className="text-slate-400">View and manage all your financial transactions</p>
+                                </div>
+
+                                <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xl font-semibold text-white">Transaction History ({transactions.length})</h3>
+                                        <div className="flex space-x-2">
+                                            <button className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors">Filter</button>
+                                            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">Export</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="space-y-4">
+                                        {transactions.length > 0 ? transactions.map((transaction) => (
+                                            <div key={transaction.id} className="flex items-center justify-between py-4 border-b border-slate-800">
+                                                <div className="flex items-center space-x-4">
+                                                    <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${
+                                                        transaction.type === 'Income' ? 'bg-green-500/20' : 'bg-red-500/20'
+                                                    }`}>
+                                                        <span className={`${
+                                                            transaction.type === 'Income' ? 'text-green-400' : 'text-red-400'
+                                                        }`}>
+                                                            {transaction.type === 'Income' ? '💰' : 
+                                                             transaction.subcategory === 'Groceries' ? '🛒' :
+                                                             transaction.subcategory === 'Transportation' ? '🚗' :
+                                                             transaction.subcategory === 'Entertainment' ? '🎬' :
+                                                             transaction.subcategory === 'Utilities' ? '⚡' : '💳'}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-white">{transaction.description || transaction.subcategory}</p>
+                                                        <p className="text-sm text-slate-400">{transaction.subcategory} • {formatDate(transaction.date)}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className={`font-medium text-lg ${
+                                                        transaction.type === 'Income' ? 'text-green-400' : 'text-red-400'
+                                                    }`}>
+                                                        {transaction.type === 'Income' ? '+' : '-'}{getSymbol(transaction.currency)}{transaction.amount}
+                                                    </span>
+                                                    <p className="text-xs text-slate-400">{transaction.currency}</p>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <div className="text-center py-12">
+                                                <div className="text-6xl mb-4">📝</div>
+                                                <p className="text-xl text-slate-400 mb-2">No transactions yet</p>
+                                                <p className="text-slate-500">Start tracking your finances by adding your first transaction</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Goals Section */}
+                        {activeSection === 'goals' && (
+                            <div>
+                                <div className="mb-8">
+                                    <h1 className="text-3xl font-bold text-white mb-2">Financial Goals</h1>
+                                    <p className="text-slate-400">Track and manage your savings goals</p>
+                                </div>
+
+                                <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 mb-8">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xl font-semibold text-white">Goal Planning</h3>
+                                        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                                            Add New Goal
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="text-center py-12">
+                                        <div className="text-6xl mb-4">🎯</div>
+                                        <p className="text-xl text-slate-400 mb-2">Goals feature coming soon!</p>
+                                        <p className="text-slate-500">Set and track your financial goals with smart recommendations</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Insights Section */}
+                        {activeSection === 'insights' && (
+                            <div>
+                                <div className="mb-8">
+                                    <h1 className="text-3xl font-bold text-white mb-2">Financial Insights</h1>
+                                    <p className="text-slate-400">AI-powered insights to improve your financial health</p>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                                        <h3 className="text-xl font-semibold text-white mb-4">💡 Smart Recommendations</h3>
+                                        <div className="space-y-4">
+                                            {parseFloat(totals.net) > 0 ? (
+                                                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
+                                                    <h4 className="font-medium text-green-400 mb-2">Great Financial Health!</h4>
+                                                    <p className="text-sm text-slate-300">You have a positive balance of {currencySymbol}{totals.net}. Consider setting up savings goals.</p>
+                                                </div>
+                                            ) : (
+                                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
+                                                    <h4 className="font-medium text-red-400 mb-2">Review Your Spending</h4>
+                                                    <p className="text-sm text-slate-300">Your expenses exceed income by {currencySymbol}{Math.abs(parseFloat(totals.net))}. Consider budgeting.</p>
+                                                </div>
+                                            )}
+                                            
+                                            {transactions.length > 0 && (
+                                                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                                                    <h4 className="font-medium text-blue-400 mb-2">Track Your Progress</h4>
+                                                    <p className="text-sm text-slate-300">You have {transactions.length} transactions recorded. Keep tracking for better insights!</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                                        <h3 className="text-xl font-semibold text-white mb-4">📊 Your Statistics</h3>
+                                        <div className="space-y-4">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-300">Total Income</span>
+                                                <span className="text-white font-medium">{currencySymbol}{totals.income}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-300">Total Expenses</span>
+                                                <span className="text-white font-medium">{currencySymbol}{totals.expense}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-300">Net Balance</span>
+                                                <span className={`font-medium ${parseFloat(totals.net) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                                    {currencySymbol}{totals.net}
+                                                </span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-slate-300">Base Currency</span>
+                                                <span className="text-white font-medium">{baseCurrency}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        // --- App Gatekeeper ---
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [auth, setAuth] = useState(null);
+            const [db, setDb] = useState(null);
+            const [isInitializing, setIsInitializing] = useState(true);
+            const [error, setError] = useState('');
+
+            useEffect(() => {
+                const firebaseConfig = {
+                    apiKey: "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484",
+                    authDomain: "financial-wellness-dashboard.firebaseapp.com",
+                    projectId: "financial-wellness-dashboard",
+                    storageBucket: "financial-wellness-dashboard.appspot.com",
+                    messagingSenderId: "599378817258",
+                    appId: "1:599378817258:web:95841307d6960986f36793"
+                };
+
+                try {
+                    firebase.initializeApp(firebaseConfig);
+                    const authInstance = firebase.auth();
+                    const dbInstance = firebase.firestore();
+                    setAuth(authInstance);
+                    setDb(dbInstance);
+                    
+                    const unsubscribe = authInstance.onAuthStateChanged((currentUser) => {
+                        setUser(currentUser);
+                        setIsInitializing(false);
+                    });
+                    return () => unsubscribe();
+                } catch (error) {
+                    console.error("Error initializing Firebase:", error);
+                    setError("Failed to initialize app");
+                    setIsInitializing(false);
+                }
+            }, []);
+
+            if (isInitializing) {
+                return (
+                    <div className="flex items-center justify-center min-h-screen bg-slate-950">
+                        <div className="text-center">
+                            <div className="text-4xl font-bold gradient-text mb-4">Clarity</div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+                            <p className="text-slate-400 mt-4">Loading your dashboard...</p>
+                        </div>
+                    </div>
+                );
             }
-        }, []);
 
-        if (isInitializing) {
-            return (<div className="flex items-center justify-center min-h-screen bg-slate-900 text-gray-400"><Loader2 className="w-10 h-10 animate-spin mr-3"/><p>Connecting to services...</p></div>);
-        }
+            if (error) {
+                return (
+                    <div className="flex items-center justify-center min-h-screen bg-slate-950">
+                        <div className="text-center">
+                            <div className="text-red-400 text-xl mb-4">⚠️ Error</div>
+                            <p className="text-slate-400">{error}</p>
+                        </div>
+                    </div>
+                );
+            }
 
-        if (firebaseError) {
-            return (<div className="flex items-center justify-center min-h-screen bg-slate-900 text-red-400"><p>{firebaseError}</p></div>);
-        }
+            return user ? <FinancialDashboard user={user} db={db} auth={auth} /> : <LoginPage auth={auth} setError={setError} />;
+        };
 
-        return (<> {user ? (<FinancialDashboard user={user} db={db} auth={auth} />) : (<LoginPage auth={auth} />)} </>);
-    };
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
-  </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97d08570b42fc71e',t:'MTc1NzUyNDA0Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
