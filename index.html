@@ -114,6 +114,10 @@
             const [isParsing, setIsParsing] = useState(false);
             const [pendingTransactions, setPendingTransactions] = useState([]);
             const [message, setMessage] = useState('');
+            const chatEndRef = useRef(null);
+            const [chatHistory, setChatHistory] = useState([]);
+            const [chatInput, setChatInput] = useState('');
+            const [isChatting, setIsChatting] = useState(false);
             
             useEffect(() => {
                 if (!db || !user) return;
@@ -125,6 +129,12 @@
                 });
                 return () => unsubscribe();
             }, [db, user]);
+
+            useEffect(() => {
+                if (chatEndRef.current) {
+                    chatEndRef.current.scrollTop = chatEndRef.current.scrollHeight;
+                }
+            }, [chatHistory]);
 
             const totals = useMemo(() => {
                 let totalIncome = 0;
@@ -167,6 +177,54 @@
                     await firebase.auth().signOut();
                 } catch (error) {
                     console.error('Error signing out:', error);
+                }
+            };
+
+            const handleSendMessage = async () => {
+                if (isChatting || !chatInput.trim()) return;
+                
+                const userMessage = { role: 'user', content: chatInput };
+                const newChatHistory = [...chatHistory, userMessage];
+                setChatHistory(newChatHistory);
+                setChatInput('');
+                setIsChatting(true);
+                
+                try {
+                    const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
+                    const prompt = `
+                    You are a professional and empathetic financial coach named Clarity. Your goal is to provide clear, actionable, and encouraging advice based on the user's financial data and their questions. Do not use markdown formatting.
+
+                    FINANCIAL DATA SUMMARY:
+                    - Total Income: ${totals.income} ${baseCurrency}
+                    - Total Expenses: ${totals.expense} ${baseCurrency}
+                    - Net Flow: ${totals.net} ${baseCurrency}
+                    - Recent Transactions (JSON): ${JSON.stringify(transactions.slice(0, 10))}
+
+                    CONVERSATION HISTORY:
+                    ${newChatHistory.map(msg => `${msg.role}: ${msg.content}`).join('\n')}
+
+                    Based on all the data above, provide a helpful and concise response to the user's latest question.
+                    Assistant:
+                    `;
+
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] } )
+                    });
+
+                    if (!response.ok) {
+                        throw new Error("The AI is currently unavailable. Please try again later.");
+                    }
+
+                    const result = await response.json();
+                    const aiMessage = result.candidates[0].content.parts[0].text;
+                    setChatHistory(prev => [...prev, { role: 'assistant', content: aiMessage.trim() }]);
+
+                } catch (error) {
+                    setChatHistory(prev => [...prev, { role: 'assistant', content: `Sorry, I encountered an error: ${error.message}` }]);
+                } finally {
+                    setIsChatting(false);
                 }
             };
 
@@ -603,56 +661,48 @@
                         {activeSection === 'insights' && (
                             <div>
                                 <div className="mb-8">
-                                    <h1 className="text-3xl font-bold text-white mb-2">Financial Insights</h1>
-                                    <p className="text-slate-400">AI-powered insights to improve your financial health</p>
+                                    <h1 className="text-3xl font-bold text-white mb-2">AI Financial Coach</h1>
+                                    <p className="text-slate-400">Ask questions about your finances to get personalized, AI-powered advice.</p>
                                 </div>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
-                                        <h3 className="text-xl font-semibold text-white mb-4">💡 Smart Recommendations</h3>
-                                        <div className="space-y-4">
-                                            {parseFloat(totals.net) > 0 ? (
-                                                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4">
-                                                    <h4 className="font-medium text-green-400 mb-2">Great Financial Health!</h4>
-                                                    <p className="text-sm text-slate-300">You have a positive balance of {currencySymbol}{totals.net}. Consider setting up savings goals.</p>
-                                                </div>
-                                            ) : (
-                                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                                                    <h4 className="font-medium text-red-400 mb-2">Review Your Spending</h4>
-                                                    <p className="text-sm text-slate-300">Your expenses exceed income by {currencySymbol}{Math.abs(parseFloat(totals.net))}. Consider budgeting.</p>
+                                <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                                    <div className="flex flex-col h-96">
+                                        <div ref={chatEndRef} className="flex-1 overflow-y-auto p-4 bg-slate-800 rounded-lg mb-4 space-y-4">
+                                            {chatHistory.length === 0 && (
+                                                <div className="text-center text-slate-400 h-full flex flex-col justify-center items-center">
+                                                    <div className="text-5xl mb-4">🤖</div>
+                                                    <p>Ask a question to get started.</p>
+                                                    <p className="text-sm text-slate-500">e.g., "How can I reduce my spending?"</p>
                                                 </div>
                                             )}
-                                            
-                                            {transactions.length > 0 && (
-                                                <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                                                    <h4 className="font-medium text-blue-400 mb-2">Track Your Progress</h4>
-                                                    <p className="text-sm text-slate-300">You have {transactions.length} transactions recorded. Keep tracking for better insights!</p>
+                                            {chatHistory.map((message, index) => (
+                                                <div key={index} className={`flex items-start gap-3 ${message.role === 'user' ? 'justify-end' : ''}`}>
+                                                    {message.role === 'assistant' && (
+                                                        <div className="w-8 h-8 bg-slate-700 rounded-full flex-shrink-0 flex items-center justify-center">🤖</div>
+                                                    )}
+                                                    <div className={`p-3 rounded-lg max-w-lg ${message.role === 'user' ? 'bg-blue-600 text-white' : 'bg-slate-700'}`}>
+                                                        <p className="whitespace-pre-wrap">{message.content}</p>
+                                                    </div>
                                                 </div>
-                                            )}
+                                            ))}
                                         </div>
-                                    </div>
-
-                                    <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
-                                        <h3 className="text-xl font-semibold text-white mb-4">📊 Your Statistics</h3>
-                                        <div className="space-y-4">
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-300">Total Income</span>
-                                                <span className="text-white font-medium">{currencySymbol}{totals.income}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-300">Total Expenses</span>
-                                                <span className="text-white font-medium">{currencySymbol}{totals.expense}</span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-300">Net Balance</span>
-                                                <span className={`font-medium ${parseFloat(totals.net) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {currencySymbol}{totals.net}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between items-center">
-                                                <span className="text-slate-300">Base Currency</span>
-                                                <span className="text-white font-medium">{baseCurrency}</span>
-                                            </div>
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                type="text" 
+                                                value={chatInput} 
+                                                onChange={(e) => setChatInput(e.target.value)} 
+                                                onKeyDown={(e) => { if (e.key === 'Enter' && !isChatting) handleSendMessage(); }} 
+                                                placeholder="Ask a financial question..." 
+                                                className="flex-1 p-3 rounded-lg bg-slate-800 border border-slate-700 text-gray-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                                disabled={isChatting}
+                                            />
+                                            <button 
+                                                onClick={handleSendMessage} 
+                                                disabled={isChatting || !chatInput.trim()} 
+                                                className={`p-3 rounded-lg font-semibold transition-colors shadow-lg flex items-center justify-center w-24 ${isChatting || !chatInput.trim() ? 'bg-slate-600 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                            >
+                                                {isChatting ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div> : "Ask"}
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -729,5 +779,5 @@
         ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97d0b7cd40cec71e',t:'MTc1NzUyNjEwNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97d0c3b904e4c71e',t:'MTc1NzUyNjU5My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
