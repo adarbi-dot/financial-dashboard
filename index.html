@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Clarity - Financial Wellness Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
@@ -34,29 +34,34 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
 
-    /* ----------  CONFIG  ---------- */
+    // Helper data
     const exchangeRates = { USD: 1, AED: 3.67, EUR: 1.08, GBP: 1.25 };
+    const categories = {
+      'Personal Expense': ['Groceries', 'Rent', 'Utilities', 'Entertainment', 'Transportation', 'Subscriptions', 'Other Personal'],
+      'Business Expense': ['Software', 'Freelance Tools', 'Co-working Space', 'Marketing', 'Education', 'Other Business'],
+      'Income': ['Client Work', 'Bonus', 'Tips', 'Salary', 'Other Income']
+    };
     const currencies = [
       { code: 'USD', symbol: '$' },
       { code: 'AED', symbol: 'د.إ' },
       { code: 'EUR', symbol: '€' },
       { code: 'GBP', symbol: '£' }
     ];
-    const getSymbol = code => currencies.find(c => c.code === code)?.symbol || '';
-    const formatDate = d => new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const getSymbol = (code) => currencies.find(c => c.code === code)?.symbol || '';
+    const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    /* ----------  LOGIN  ---------- */
-    const LoginPage = ({ setError }) => {
+    // Login
+    const LoginPage = ({ auth, setError }) => {
       const [isLogin, setIsLogin] = useState(true);
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
 
-      const handleAuthAction = async e => {
-        e.preventDefault(); setError('');
+      const handleAuthAction = async (e) => {
+        e.preventDefault();
+        setError('');
         try {
-          isLogin
-            ? await firebase.auth().signInWithEmailAndPassword(email, password)
-            : await firebase.auth().createUserWithEmailAndPassword(email, password);
+          if (isLogin) await firebase.auth().signInWithEmailAndPassword(email, password);
+          else await firebase.auth().createUserWithEmailAndPassword(email, password);
         } catch (err) { setError(err.message); }
       };
 
@@ -70,13 +75,13 @@
             <form onSubmit={handleAuthAction} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-1 text-slate-400">Email Address</label>
-                <input type="email" value={email} onChange={e=>setEmail(e.target.value)} required
+                <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required
                        className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500 text-white"
                        placeholder="you@example.com"/>
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1 text-slate-400">Password</label>
-                <input type="password" value={password} onChange={e=>setPassword(e.target.value)} required
+                <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required
                        className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500 text-white"
                        placeholder="••••••••"/>
               </div>
@@ -86,7 +91,7 @@
             </form>
             <p className="text-center text-sm text-slate-400">
               {isLogin ? "Don't have an account? " : "Already have an account? "}
-              <button onClick={()=>{setIsLogin(!isLogin); setError('');}} className="font-medium text-blue-400 hover:underline">
+              <button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="font-medium text-blue-400 hover:underline">
                 {isLogin ? 'Sign Up' : 'Login'}
               </button>
             </p>
@@ -95,301 +100,690 @@
       );
     };
 
-    /* ----------  MAIN DASHBOARD  ---------- */
+    // App
     const FinancialDashboard = ({ user }) => {
-      /* ---- state ---- */
       const [transactions, setTransactions] = useState([]);
-      const [baseCurrency, setBaseCurrency] = useState(localStorage.getItem('userBaseCurrency')||'USD');
+      const [baseCurrency, setBaseCurrency] = useState(localStorage.getItem('userBaseCurrency') || 'USD');
       const [activeSection, setActiveSection] = useState('dashboard');
 
-      // importer
+      // Importer
       const [pastedText, setPastedText] = useState('');
       const [isParsing, setIsParsing] = useState(false);
       const [message, setMessage] = useState('');
 
-      // insights + chat
+      // Chat (kept for compatibility; no longer used in Insights)
+      const chatEndRef = useRef(null);
+      const [chatHistory, setChatHistory] = useState([]);
+      const [chatInput, setChatInput] = useState('');
+      const [isChatting, setIsChatting] = useState(false);
+
+      // New: Insights state for the new layout
       const [insights, setInsights] = useState([]);
       const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
-      const [chatMessages, setChatMessages] = useState([]);
-      const [chatInput, setChatInput] = useState('');
-      const [isChatLoading, setIsChatLoading] = useState(false);
 
-      // goals
-      const [goals, setGoals] = useState([]);
-      const [futureExpenses, setFutureExpenses] = useState([]);
-      const [showAddGoal, setShowAddGoal] = useState(false);
-      const [showAddExpense, setShowAddExpense] = useState(false);
-      const [newGoal, setNewGoal] = useState({ name:'',target:'',deadline:'',saved:0 });
-      const [newExpense, setNewExpense] = useState({ name:'',amount:'',date:'',category:'School Fees' });
-
-      // monthly
-      const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0,7));
-      const [monthlyInsights, setMonthlyInsights] = useState('');
-      const [isAnalyzingMonth, setIsAnalyzingMonth] = useState(false);
-
-      /* ---- firestore subs ---- */
-      useEffect(()=>{
-        if(!user) return;
-        const txRef = firebase.firestore().collection(`users/${user.uid}/transactions`);
-        const gRef  = firebase.firestore().collection(`users/${user.uid}/goals`);
-        const feRef = firebase.firestore().collection(`users/${user.uid}/futureExpenses`);
-        const uns = [
-          txRef.onSnapshot(snap=>{
-            const list = snap.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>new Date(b.date)-new Date(a.date));
-            setTransactions(list);
-          }),
-          gRef.onSnapshot(s=>setGoals(s.docs.map(d=>({id:d.id,...d.data()})))),
-          feRef.onSnapshot(s=>setFutureExpenses(s.docs.map(d=>({id:d.id,...d.data()}))))
-        ];
-        return ()=>uns.forEach(u=>u());
-      },[user]);
-
-      /* ---- calculations ---- */
-      const totals = useMemo(()=>{
-        let inc=0, exp=0;
-        transactions.forEach(t=>{
-          const r = exchangeRates[t.currency]||1, br = exchangeRates[baseCurrency]||1;
-          const amt = t.amount*(r/br);
-          t.type==='Income'?inc+=amt:exp+=amt;
+      useEffect(() => {
+        if (!user) return;
+        const transactionsRef = firebase.firestore().collection(`users/${user.uid}/transactions`);
+        const unsubscribe = transactionsRef.onSnapshot((snapshot) => {
+          const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          fetched.sort((a, b) => new Date(b.date) - new Date(a.date));
+          setTransactions(fetched);
         });
-        return {income:inc.toFixed(2), expense:exp.toFixed(2), net:(inc-exp).toFixed(2)};
-      },[transactions,baseCurrency]);
+        return () => unsubscribe();
+      }, [user]);
 
-      const getMonthlyTransactions = useMemo(()=>{
-        const g={};
-        transactions.forEach(t=>{
-          const m=t.date.slice(0,7);
-          (g[m]||(g[m]=[])).push(t);
+      useEffect(() => {
+        if (chatEndRef.current) chatEndRef.current.scrollTop = chatEndRef.current.scrollHeight;
+      }, [chatHistory]);
+
+      const totals = useMemo(() => {
+        let totalIncome = 0, totalExpense = 0;
+        transactions.forEach(t => {
+          const rate = exchangeRates[t.currency] || 1;
+          const baseRate = exchangeRates[baseCurrency] || 1;
+          const convertedAmount = t.amount * (rate / baseRate);
+          if (t.type === 'Income') totalIncome += convertedAmount;
+          else totalExpense += convertedAmount;
         });
-        return g;
-      },[transactions]);
+        return {
+          income: totalIncome.toFixed(2),
+          expense: totalExpense.toFixed(2),
+          net: (totalIncome - totalExpense).toFixed(2)
+        };
+      }, [transactions, baseCurrency]);
 
-      const getMonthlyTotals = monthTx=>{
-        let inc=0, exp=0;
-        monthTx.forEach(t=>{
-          const r=exchangeRates[t.currency]||1, br=exchangeRates[baseCurrency]||1;
-          const amt=t.amount*(r/br);
-          t.type==='Income'?inc+=amt:exp+=amt;
-        });
-        return {income:inc.toFixed(2), expense:exp.toFixed(2), net:(inc-exp).toFixed(2)};
-      };
+      const recentTransactions = transactions.slice(0, 5);
+      const userName = user.email.split('@')[0];
+      const currencySymbol = getSymbol(baseCurrency);
 
-      const categoryBreakdown = useMemo(()=>{
-        const b={};
-        transactions.forEach(t=>{
-          if(t.type!=='Income'){
-            const r=exchangeRates[t.currency]||1, br=exchangeRates[baseCurrency]||1;
-            const amt=t.amount*(r/br);
-            b[t.subcategory]=(b[t.subcategory]||0)+amt;
+      const categoryBreakdown = useMemo(() => {
+        const breakdown = {};
+        transactions.forEach(t => {
+          if (t.type !== 'Income') {
+            const rate = exchangeRates[t.currency] || 1;
+            const baseRate = exchangeRates[baseCurrency] || 1;
+            const convertedAmount = t.amount * (rate / baseRate);
+            breakdown[t.subcategory] = (breakdown[t.subcategory] || 0) + convertedAmount;
           }
         });
-        return Object.entries(b).sort((a,b)=>b[1]-a[1]).slice(0,5);
-      },[transactions,baseCurrency]);
+        return Object.entries(breakdown).sort((a,b)=>b[1]-a[1]).slice(0,5);
+      }, [transactions, baseCurrency]);
 
-      /* ---- helpers ---- */
-      const handleSignOut = async ()=>{try{await firebase.auth().signOut()}catch(e){console.error(e)}};
-      const handleDeleteTransaction = async id=>{
-        if(!confirm('Are you sure you want to delete this transaction?')) return;
-        try{await firebase.firestore().collection(`users/${user.uid}/transactions`).doc(id).delete()}
-        catch(e){console.error(e);alert('Failed to delete transaction.')}
+      const handleSignOut = async () => {
+        try { await firebase.auth().signOut(); } catch (e) { console.error(e); }
       };
 
-      /* ---- AI functions ---- */
-      const handleParseText = async ()=>{
-        if(!pastedText.trim()){setMessage('Paste text to import.');return;}
-        setIsParsing(true);setMessage('Analyzing with AI...');
-        try{
-          const apiKey="AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
-          const prompt=`Extract JSON array of transactions (fields: date YYYY-MM-DD, amount number, currency 3-letter, type Income/Expense, subcategory). Remove symbols from amount.`;
-          const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({contents:[{parts:[{text:prompt+'\n---\n'+pastedText+'\n---'}]}]})
+      // Importer with accurate parsing (already improved earlier)
+      const handleParseText = async () => {
+        if (!pastedText.trim()) { setMessage('Please paste text to import.'); return; }
+        setIsParsing(true);
+        setMessage('Analyzing with AI...');
+        try {
+          const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
+          const prompt = `You are an expert data extraction tool. Your only job is to find and return a valid JSON array of financial transactions from the user's text. Follow these rules strictly:
+1.  **Date is CRITICAL.** You MUST convert any date format (e.g., DD/MM/YYYY, MM-DD-YY, Month D, YYYY) into the strict YYYY-MM-DD format. If a transaction has no date, exclude it.
+2.  **Amount is CRITICAL.** The 'amount' field must be a number only. You MUST remove any commas, currency symbols, or other non-numeric characters. For example, "$250,000.00" must become 250000.
+3.  **Currency is CRITICAL.** Use three-letter codes (USD, AED, etc.).
+4.  **Type is CRITICAL.** You must determine if the transaction is 'Income' or an 'Expense' type.
+5.  **Your entire response must ONLY be the JSON array.** Do not add any other text.
+
+USER'S TEXT TO PARSE:
+---
+${pastedText}
+---
+`;
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
           });
-          if(!res.ok) throw new Error('AI API error');
-          const raw=(await res.json()).candidates[0].content.parts[0].text;
-          const arr=JSON.parse(raw.match(/\[.*\]/s)[0]);
-          const batch=firebase.firestore().batch(), col=firebase.firestore().collection(`users/${user.uid}/transactions`);
-          let c=0; arr.forEach(tx=>{if(tx.date&&!isNaN(new Date(tx.date))&&tx.amount){batch.set(col.doc(),tx);c++;}});
-          if(!c) throw new Error('No valid transactions');
-          await batch.commit(); setMessage(`Imported ${c} transactions!`); setPastedText('');
-        }catch(e){setMessage(`Import Error: ${e.message}`);}
-        finally{setIsParsing(false);}
-      };
+          if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`AI API Error: ${response.statusText}. Details: ${errorBody}`);
+          }
+          const result = await response.json();
+          const rawJsonText = result.candidates[0].content.parts[0].text;
+          const match = rawJsonText.match(/\[.*\]/s);
+          if (!match) throw new Error("The AI did not return a valid JSON array. Please check the pasted text format.");
 
-      const handleGenerateInsights = async ()=>{
-        if(isGeneratingInsights) return;
-        setIsGeneratingInsights(true);setInsights([]);
-        try{
-          const apiKey="AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
-          const prompt=`You are Clarity. Give exactly 3 brief actionable recommendations (title,recommendation,type) under 100 chars each. Data: Income ${totals.income} ${baseCurrency}, Expenses ${totals.expense} ${baseCurrency}, Net ${totals.net} ${baseCurrency}, Recent ${JSON.stringify(transactions.slice(0,10))}. Respond ONLY JSON array.`;
-          const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+          const parsedTransactions = JSON.parse(match[0]);
+
+          const batch = firebase.firestore().batch();
+          const transactionsCollectionRef = firebase.firestore().collection(`users/${user.uid}/transactions`);
+
+          let transactionsAdded = 0;
+          parsedTransactions.forEach(transaction => {
+            if (transaction.date && !isNaN(new Date(transaction.date)) && transaction.amount) {
+              const newRef = transactionsCollectionRef.doc();
+              batch.set(newRef, transaction);
+              transactionsAdded++;
+            }
           });
-          const raw=(await res.json()).candidates[0].content.parts[0].text;
-          const arr=JSON.parse(raw.match(/\[.*\]/s)[0]);
-          if(!Array.isArray(arr)||arr.length!==3) throw new Error('Bad AI response');
-          setInsights(arr);
-        }catch(e){setInsights([{type:'negative',title:'Analysis Error',recommendation:`Unable to generate insights: ${e.message}`}]);}
-        finally{setIsGeneratingInsights(false);}
+
+          if (transactionsAdded === 0) throw new Error("No valid transactions with dates and amounts were found in the provided text.");
+
+          await batch.commit();
+          setMessage(`Successfully imported ${transactionsAdded} transactions!`);
+          setPastedText('');
+        } catch (error) {
+          console.error("Error during import:", error);
+          setMessage(`Import Error: ${error.message}`);
+        } finally {
+          setIsParsing(false);
+        }
       };
 
-      const handleSendChatMessage = async ()=>{
-        if(!chatInput.trim()||isChatLoading) return;
-        const msg=chatInput.trim(); setChatInput(''); setChatMessages(p=>[...p,{type:'user',message:msg}]); setIsChatLoading(true);
-        try{
-          const apiKey="AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
-          const prompt=`You are Clarity, a financial advisor. Answer: "${msg}". User data: Income ${totals.income} ${baseCurrency}, Expenses ${totals.expense} ${baseCurrency}, Recent ${JSON.stringify(transactions.slice(0,10))}. Keep under 100 words.`;
-          const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+      // New: Generate insights (temporary local logic so the button works now)
+      const handleGenerateInsights = async () => {
+        if (isGeneratingInsights) return;
+        setIsGeneratingInsights(true);
+        setInsights([]);
+
+        try {
+          const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
+          const prompt = `
+        You are an expert financial analyst named Clarity. Your job is to analyze the user's financial data and provide three brief, actionable recommendations.
+        
+        **RULES:**
+        1.  Analyze the provided financial data summary.
+        2.  Generate exactly three recommendations.
+        3.  For each recommendation, provide a "title", a "recommendation" text, and a "type" ('positive', 'negative', or 'neutral').
+        4.  Your entire response MUST be ONLY a valid JSON array of three objects, like this:
+            [
+              {"type": "negative", "title": "Reduce Dining Expenses", "recommendation": "You spent 15% more on dining this month. Consider meal planning to save money."},
+              {"type": "positive", "title": "Emergency Fund Progress", "recommendation": "Great job! You're on track to reach your emergency fund goal early."},
+              {"type": "neutral", "title": "Investment Opportunity", "recommendation": "You have a monthly surplus. Consider investing in a diversified portfolio."}
+            ]
+        5.  NEVER output any text, explanation, or conversation. Your entire response must be ONLY the JSON array.
+
+        **USER'S FINANCIAL DATA:**
+        ---
+        Total Income: ${totals.income} ${baseCurrency}
+        Total Expenses: ${totals.expense} ${baseCurrency}
+        Net Flow: ${totals.net} ${baseCurrency}
+        Transaction Count: ${transactions.length}
+        Recent Transactions (JSON): ${JSON.stringify(transactions.slice(0, 15))}
+        ---
+        `;
+
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
           });
-          const ai=(await res.json()).candidates[0].content.parts[0].text;
-          setChatMessages(p=>[...p,{type:'ai',message:ai}]);
-        }catch{setChatMessages(p=>[...p,{type:'ai',message:'Sorry, I encountered an error.'}]);}
-        finally{setIsChatLoading(false);}
+
+          if (!response.ok) {
+            throw new Error("The AI analysis service is currently unavailable.");
+          }
+
+          const result = await response.json();
+          const rawJsonText = result.candidates[0].content.parts[0].text;
+          const match = rawJsonText.match(/\[.*\]/s);
+          if (!match) {
+            throw new Error("The AI returned an invalid format for the insights.");
+          }
+          const parsedInsights = JSON.parse(match[0]);
+          setInsights(parsedInsights);
+        } catch (error) {
+          console.error("Error generating insights:", error);
+          setInsights([{
+            type: 'negative',
+            title: 'Error Generating Insights',
+            recommendation: `Sorry, I encountered an error: ${error.message}. Please try again.`
+          }]);
+        } finally {
+          setIsGeneratingInsights(false);
+        }
       };
 
-      const analyzeMonth = async month=>{
-        setIsAnalyzingMonth(true);
-        const monthTx=getMonthlyTransactions[month]||[];
-        const mt=getMonthlyTotals(monthTx);
-        try{
-          const apiKey="AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
-          const prompt=`Analyze ${month} spending. Income ${mt.income} ${baseCurrency}, Expenses ${mt.expense} ${baseCurrency}, Net ${mt.net} ${baseCurrency}. Transactions ${JSON.stringify(monthTx.slice(0,20))}. Give 2 sentences and 1 tip.`;
-          const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`,{
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({contents:[{parts:[{text:prompt}]}]})
-          });
-          setMonthlyInsights((await res.json()).candidates[0].content.parts[0].text);
-        }catch{setMonthlyInsights('Unable to analyze this month.')}
-        finally{setIsAnalyzingMonth(false);}
-      };
+      const showSection = (id) => setActiveSection(id);
 
-      /* ---- goals handlers ---- */
-      const handleAddGoal = async()=>{
-        if(!newGoal.name||!newGoal.target||!newGoal.deadline) return;
-        await firebase.firestore().collection(`users/${user.uid}/goals`).add({...newGoal,target:parseFloat(newGoal.target),createdAt:new Date()});
-        setNewGoal({name:'',target:'',deadline:'',saved:0}); setShowAddGoal(false);
-      };
-      const handleAddExpense = async()=>{
-        if(!newExpense.name||!newExpense.amount||!newExpense.date) return;
-        await firebase.firestore().collection(`users/${user.uid}/futureExpenses`).add({...newExpense,amount:parseFloat(newExpense.amount),createdAt:new Date()});
-        setNewExpense({name:'',amount:'',date:'',category:'School Fees'}); setShowAddExpense(false);
-      };
-
-      /* ---- render helpers ---- */
-      const symbol=getSymbol(baseCurrency);
-      const recent=transactions.slice(0,5);
-
-      /* ----------  SECTIONS  ---------- */
-      const Dashboard=()=>(
-        <div>
-          <div className="mb-8"><h1 className="text-3xl font-bold text-white mb-2">Welcome back, {user.email.split('@')[0]}! 👋</h1><p className="text-slate-400">Here's your financial overview</p></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 card-hover"><div className="flex items-center justify-between"><div className="flex-1"><div className="flex items-center justify-between mb-2"><p className="text-slate-400 text-sm font-medium">Net Balance</p><select value={baseCurrency} onChange={e=>{setBaseCurrency(e.target.value);localStorage.setItem('userBaseCurrency',e.target.value)}} className="bg-slate-800 border border-slate-700 text-white text-xs px-2 py-1 rounded">{currencies.map(c=><option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}</select></div><p className="text-2xl font-bold text-white">{symbol}{totals.net}</p><p className={`text-sm mt-1 ${parseFloat(totals.net)>=0?'text-green-400':'text-red-400'}`}>{parseFloat(totals.net)>=0?'Positive':'Negative'} balance</p></div><div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center ml-4"><svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path></svg></div></div></div>
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 card-hover"><div className="flex items-center justify-between"><div><p className="text-slate-400 text-sm font-medium">Total Expenses</p><p className="text-2xl font-bold text-white">{symbol}{totals.expense}</p><p className="text-red-400 text-sm mt-1">{transactions.filter(t=>t.type!=='Income').length} transactions</p></div><div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center"><svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path></svg></div></div></div>
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 card-hover"><div className="flex items-center justify-between"><div><p className="text-slate-400 text-sm font-medium">Total Income</p><p className="text-2xl font-bold text-white">{symbol}{totals.income}</p><p className="text-green-400 text-sm mt-1">{transactions.filter(t=>t.type==='Income').length} transactions</p></div><div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center"><svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg></div></div></div>
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 card-hover"><div className="flex items-center justify-between"><div><p className="text-slate-400 text-sm font-medium">Total Transactions</p><p className="text-2xl font-bold text-white">{transactions.length}</p><p className="text-purple-400 text-sm mt-1">All time</p></div><div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center"><svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg></div></div></div>
-          </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6"><h3 className="text-xl font-semibold text-white mb-4">Recent Activity</h3><div className="h-48 flex items-center justify-center"><div className="text-center"><div className="text-4xl mb-4">📊</div><p className="text-slate-400">Visual charts coming soon!</p><p className="text-sm text-slate-500 mt-2">Your data is being tracked</p></div></div></div>
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6"><h3 className="text-xl font-semibold text-white mb-4">Top Spending Categories</h3><div className="space-y-3">{categoryBreakdown.length>0?categoryBreakdown.map(([cat,amt],i)=><div key={cat} className="flex items-center justify-between"><div className="flex items-center space-x-3"><div className={`w-3 h-3 rounded-full ${i===0?'bg-blue-400':i===1?'bg-purple-400':i===2?'bg-pink-400':i===3?'bg-green-400':'bg-yellow-400'}`}></div><span className="text-sm text-slate-300">{cat}</span></div><span className="text-sm text-white">{symbol}{amt.toFixed(2)}</span></div>):<div className="text-center py-8"><p className="text-slate-400">No expense data yet</p><p className="text-sm text-slate-500 mt-1">Start adding transactions to see breakdown</p></div>}</div></div>
-          </div>
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6"><div className="flex justify-between items-center mb-6"><h3 className="text-xl font-semibold text-white">Recent Transactions</h3><button onClick={()=>setActiveSection('transactions')} className="text-blue-400 hover:text-blue-300 text-sm font-medium">View All</button></div><div className="space-y-4">{recent.length>0?recent.map(tx=><div key={tx.id} className="flex items-center justify-between py-3 border-b border-slate-800"><div className="flex items-center space-x-3"><div className={`w-10 h-10 rounded-lg flex items-center justify-center ${tx.type==='Income'?'bg-green-500/20':'bg-red-500/20'}`}><span className={`text-sm ${tx.type==='Income'?'text-green-400':'text-red-400'}`}>{tx.type==='Income'?'💰':tx.subcategory==='Groceries'?'🛒':tx.subcategory==='Transportation'?'🚗':tx.subcategory==='Entertainment'?'🎬':tx.subcategory==='Utilities'?'⚡':'💳'}</span></div><div><p className="font-medium text-white">{tx.description||tx.subcategory}</p><p className="text-sm text-slate-400">{formatDate(tx.date)}</p></div></div><span className={`font-medium ${tx.type==='Income'?'text-green-400':'text-red-400'}`}>{tx.type==='Income'?'+':'-'}{getSymbol(tx.currency)}{tx.amount}</span></div>):<div className="text-center py-8"><div className="text-4xl mb-4">📝</div><p className="text-slate-400">No transactions yet</p><p className="text-sm text-slate-500 mt-1">Your transactions will appear here</p></div>}</div></div>
-        </div>
-      );
-
-      const Transactions=()=>(
-        <div>
-          <div className="mb-8"><h1 className="text-3xl font-bold text-white mb-2">All Transactions</h1><p className="text-slate-400">View and manage all your financial transactions</p></div>
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6 mb-8">
-            <div className="flex items-center space-x-3 mb-4"><div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center"><svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg></div><div><h3 className="text-xl font-semibold text-white">Smart Document Importer</h3><p className="text-sm text-slate-400">Paste bank statements, receipts, or transaction data to import automatically</p></div></div>
-            <div className="space-y-4"><div><label className="block text-sm font-medium text-slate-300 mb-2">Paste your transaction data below:</label><textarea value={pastedText} onChange={e=>setPastedText(e.target.value)} className="w-full h-32 p-4 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 resize-none" placeholder="Paste bank statements, receipts, or any transaction text here..." disabled={isParsing}></textarea></div><div className="flex justify-between items-center"><div className="flex-1"><p className="text-xs text-slate-500">Supports: Bank statements, credit card statements, receipts, and manual transaction lists</p>{message&&<p className={`text-sm mt-2 ${message.includes('Error')?'text-red-400':message.includes('Successfully')?'text-green-400':'text-blue-400'}`}>{message}</p>}</div><button onClick={handleParseText} disabled={isParsing||!pastedText.trim()} className={`px-6 py-2 rounded-lg font-medium flex items-center space-x-2 ${isParsing||!pastedText.trim()?'bg-slate-600 text-slate-400 cursor-not-allowed':'bg-blue-600 hover:bg-blue-700 text-white'}`}>{isParsing?<> <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div><span>Processing...</span></>:<> <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg><span>Import Transactions</span></>}</button></div></div>
-          </div>
-          <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-            <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-semibold text-white">Transaction History ({transactions.length})</h3><div className="flex space-x-2"><select value={selectedMonth} onChange={e=>setSelectedMonth(e.target.value)} className="bg-slate-700 border border-slate-600 text-white px-3 py-2 rounded-lg text-sm">{[<option key="" value="">All Months</option>,...Object.keys(getMonthlyTransactions).sort().reverse().map(m=><option key={m} value={m}>{new Date(m+'-01').toLocaleDateString('en-US',{year:'numeric',month:'long'})}</option>)]}</select><button className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm">Filter</button><button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm">Export</button></div></div>
-            {selectedMonth&&getMonthlyTransactions[selectedMonth]&&<div className="mb-6 p-4 bg-slate-800 rounded-lg"><div className="flex justify-between items-center mb-4"><h4 className="text-lg font-semibold text-white">{new Date(selectedMonth+'-01').toLocaleDateString('en-US',{year:'numeric',month:'long'})} Summary</h4><button onClick={()=>analyzeMonth(selectedMonth)} disabled={isAnalyzingMonth} className="bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 text-white px-3 py-1 rounded text-sm">{isAnalyzingMonth?'Analyzing...':'AI Analysis'}</button></div>{(function(){const mt=getMonthlyTotals(getMonthlyTransactions[selectedMonth]); return <div className="grid grid-cols-3 gap-4 mb-4"><div className="text-center"><p className="text-slate-400 text-sm">Income</p><p className="text-green-400 font-semibold">{symbol}{mt.income}</p></div><div className="text-center"><p className="text-slate-400 text-sm">Expenses</p><p className="text-red-400 font-semibold">{symbol}{mt.expense}</p></div><div className="text-center"><p className="text-slate-400 text-sm">Net</p><p className={`font-semibold ${parseFloat(mt.net)>=0?'text-green-400':'text-red-400'}`}>{symbol}{mt.net}</p></div></div>})()}{monthlyInsights&&<div className="p-3 bg-slate-700 rounded-lg"><p className="text-slate-300 text-sm">{monthlyInsights}</p></div>}</div>}
-            <div className="space-y-4">{(function(){const list=selectedMonth?getMonthlyTransactions[selectedMonth]||[]:transactions; return list.length>0?list.map(tx=><div key={tx.id} className="flex items-center justify-between py-4 border-b border-slate-800"><div className="flex items-center space-x-4"><div className={`w-12 h-12 rounded-lg flex items-center justify-center ${tx.type==='Income'?'bg-green-500/20':'bg-red-500/20'}`}><span className={`${tx.type==='Income'?'text-green-400':'text-red-400'}`}>{tx.type==='Income'?'💰':tx.subcategory==='Groceries'?'🛒':tx.subcategory==='Transportation'?'🚗':tx.subcategory==='Entertainment'?'🎬':tx.subcategory==='Utilities'?'⚡':'💳'}</span></div><div><p className="font-medium text-white">{tx.description||tx.subcategory}</p><p className="text-sm text-slate-400">{tx.subcategory} • {formatDate(tx.date)}</p></div></div><div className="flex items-center space-x-4"><div className="text-right"><span className={`font-medium text-lg ${tx.type==='Income'?'text-green-400':'text-red-400'}`}>{tx.type==='Income'?'+':'-'}{getSymbol(tx.currency)}{tx.amount}</span><p className="text-xs text-slate-400">{tx.currency}</p></div><div className="flex space-x-2"><button onClick={()=>alert('Edit feature coming soon!')} className="p-2 text-slate-400 hover:text-blue-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg></button><button onClick={()=>handleDeleteTransaction(tx.id)} className="p-2 text-slate-400 hover:text-red-400"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button></div></div></div>):<div className="text-center py-12"><div className="text-6xl mb-4">📝</div><p className="text-xl text-slate-400 mb-2">No transactions for this period</p><p className="text-slate-500">Try selecting a different month or add new transactions</p></div>})()}</div>
-          </div>
-        </div>
-      );
-
-      const Goals=()=>(
-        <div>
-          <div className="mb-8"><h1 className="text-3xl font-bold text-white mb-2">Financial Goals</h1><p className="text-slate-400">Track savings goals and plan future expenses</p></div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-              <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-semibold text-white">🎯 Savings Goals</h3><button onClick={()=>setShowAddGoal(true)} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Add Goal</button></div>
-              {showAddGoal&&<div className="mb-6 p-4 bg-slate-800 rounded-lg"><h4 className="text-white font-medium mb-3">Add New Goal</h4><div className="space-y-3"><input value={newGoal.name} onChange={e=>setNewGoal({...newGoal,name:e.target.value})} placeholder="Goal name (e.g., Emergency Fund)" className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white"/><input value={newGoal.target} onChange={e=>setNewGoal({...newGoal,target:e.target.value})} placeholder="Target amount" type="number" className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white"/><input value={newGoal.deadline} onChange={e=>setNewGoal({...newGoal,deadline:e.target.value})} type="date" className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white"/><div className="flex space-x-2"><button onClick={handleAddGoal} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">Save</button><button onClick={()=>setShowAddGoal(false)} className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded text-sm">Cancel</button></div></div></div>}
-              <div className="space-y-4">{goals.length>0?goals.map(g=><div key={g.id} className="p-4 bg-slate-800 rounded-lg"><div className="flex justify-between items-center mb-2"><h4 className="text-white font-medium">{g.name}</h4><span className="text-slate-400 text-sm">{new Date(g.deadline).toLocaleDateString()}</span></div><div className="mb-2"><div className="flex justify-between text-sm mb-1"><span className="text-slate-400">Progress</span><span className="text-white">{symbol}{g.saved} / {symbol}{g.target}</span></div><div className="w-full bg-slate-700 rounded-full h-2"><div className="bg-blue-600 h-2 rounded-full" style={{width:`${Math.min((g.saved/g.target)*100,100)}%`}}></div></div></div><p className="text-xs text-slate-400">{((g.saved/g.target)*100).toFixed(1)}% complete</p></div>):<div className="text-center py-8 text-slate-400"><p>No goals yet. Add your first savings goal!</p></div>}</div>
-            </div>
-            <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-              <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-semibold text-white">📅 Future Expenses</h3><button onClick={()=>setShowAddExpense(true)} className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Plan Expense</button></div>
-              {showAddExpense&&<div className="mb-6 p-4 bg-slate-800 rounded-lg"><h4 className="text-white font-medium mb-3">Plan Future Expense</h4><div className="space-y-3"><input value={newExpense.name} onChange={e=>setNewExpense({...newExpense,name:e.target.value})} placeholder="Expense name" className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white"/><input value={newExpense.amount} onChange={e=>setNewExpense({...newExpense,amount:e.target.value})} placeholder="Amount" type="number" className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white"/><input value={newExpense.date} onChange={e=>setNewExpense({...newExpense,date:e.target.value})} type="date" className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white"/><select value={newExpense.category} onChange={e=>setNewExpense({...newExpense,category:e.target.value})} className="w-full p-2 bg-slate-700 border border-slate-600 rounded text-white"><option>School Fees</option><option>Rent</option><option>Vacation</option><option>Insurance</option><option>Medical</option><option>Other</option></select><div className="flex space-x-2"><button onClick={handleAddExpense} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">Save</button><button onClick={()=>setShowAddExpense(false)} className="bg-slate-600 hover:bg-slate-700 text-white px-4 py-2 rounded text-sm">Cancel</button></div></div></div>}
-              <div className="space-y-4">{futureExpenses.length>0?futureExpenses.map(e=><div key={e.id} className="p-4 bg-slate-800 rounded-lg"><div className="flex justify-between items-center mb-2"><h4 className="text-white font-medium">{e.name}</h4><span className="text-purple-400 font-medium">{symbol}{e.amount}</span></div><div className="flex justify-between items-center"><span className="text-slate-400 text-sm">{e.category}</span><span className="text-slate-400 text-sm">{new Date(e.date).toLocaleDateString()}</span></div></div>):<div className="text-center py-8 text-slate-400"><p>No planned expenses. Start planning ahead!</p></div>}</div>
-            </div>
-          </div>
-        </div>
-      );
-
-      const Insights=()=>(
-        <div>
-          <div className="mb-8"><h1 className="text-3xl font-bold text-white mb-2">Financial Insights</h1><p className="text-slate-400">AI-powered insights to improve your financial health</p></div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
-            <div className="lg:col-span-2 bg-slate-900/50 border border-slate-800 rounded-xl p-6">
-              <div className="flex justify-between items-center mb-4"><h3 className="text-xl font-semibold text-white">💡 Smart Recommendations</h3><button onClick={handleGenerateInsights} disabled={isGeneratingInsights} className={`px-4 py-2 rounded-lg text-sm font-medium flex items-center space-x-2 ${isGeneratingInsights?'bg-slate-600 text-slate-400 cursor-not-allowed':'bg-blue-600 hover:bg-blue-700 text-white'}`}>{isGeneratingInsights?<> <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div><span>Generating...</span></>:<span>Generate New Insights</span>}</button></div>
-              <div className="space-y-4 mb-6">{insights.length>0?insights.map((ins,i)=><div key={i} className={`border rounded-lg p-4 ${ins.type==='positive'?'bg-green-500/10 border-green-500/20':ins.type==='negative'?'bg-red-500/10 border-red-500/20':'bg-blue-500/10 border-blue-500/20'}`}><h4 className={`font-medium mb-2 ${ins.type==='positive'?'text-green-400':ins.type==='negative'?'text-red-400':'text-blue-400'}`}>{ins.title}</h4><p className="text-sm text-slate-300">{ins.recommendation}</p></div>):<div className="text-center py-8 text-slate-400"><p>Click "Generate New Insights" to get personalized recommendations.</p></div>}</div>
-              <div className="border-t border-slate-700 pt-6"><h4 className="text-lg font-semibold text-white mb-4">🤖 Ask Clarity</h4><div className="bg-slate-800 rounded-lg p-4 h-64 overflow-y-auto mb-4">{chatMessages.length>0?chatMessages.map((m,i)=><div key={i} className={`mb-3 ${m.type==='user'?'text-right':'text-left'}`}><div className={`inline-block p-3 rounded-lg max-w-xs ${m.type==='user'?'bg-blue-600 text-white':'bg-slate-700 text-slate-200'}`}><p className="text-sm">{m.message}</p></div></div>):<p className="text-slate-400 text-center">Ask me anything about your finances!</p>}{isChatLoading&&<div className="text-left mb-3"><div className="inline-block p-3 rounded-lg bg-slate-700"><div className="animate-pulse text-slate-400">Thinking...</div></div></div>}</div><div className="flex space-x-2"><input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyPress={e=>e.key==='Enter'&&handleSendChatMessage()} placeholder="Ask about your spending, savings, or financial goals..." className="flex-1 p-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500"/><button onClick={handleSendChatMessage} disabled={!chatInput.trim()||isChatLoading} className="px-4 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white rounded-lg transition-colors">Send</button></div></div>
-            </div>
-            <div className="lg:col-span-1 bg-slate-900/50 border border-slate-800 rounded-xl p-6"><h3 className="text-xl font-semibold text-white mb-4">📊 Spending Patterns</h3><div className="space-y-4"><div className="flex justify-between items-center"><span className="text-slate-300">Highest spending day</span><span className="text-white font-medium">Friday</span></div><div className="flex justify-between items-center"><span className="text-slate-300">Most frequent category</span><span className="text-white font-medium">Food & Dining</span></div><div className="flex justify-between items-center"><span className="text-slate-300">Average transaction</span><span className="text-white font-medium">$47.32</span></div><div className="flex justify-between items-center"><span className="text-slate-300">Monthly trend</span><span className="text-red-400 font-medium">+8.2% ↗</span></div></div></div>
-          </div>
-        </div>
-      );
-
-      /* ----------  MAIN RENDER  ---------- */
       return (
         <div>
+          {/* Nav */}
           <nav className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-800 sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between items-center h-16">
-                <div className="flex items-center"><div className="text-2xl font-bold gradient-text">Clarity</div></div>
-                <div className="hidden md:block"><div className="ml-10 flex items-baseline space-x-4">
-                  {['dashboard','transactions','goals','insights'].map(s=><button key={s} onClick={()=>setActiveSection(s)} className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection===s?'text-blue-400':'text-slate-300 hover:text-white'}`}>{s.charAt(0).toUpperCase()+s.slice(1)}</button>)}
-                </div></div>
-                <div className="flex items-center space-x-4"><button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Connect Bank</button><button onClick={handleSignOut} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium">Sign Out</button><div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div></div>
+                <div className="flex items-center">
+                  <div className="text-2xl font-bold gradient-text">Clarity</div>
+                </div>
+                <div className="hidden md:block">
+                  <div className="ml-10 flex items-baseline space-x-4">
+                    <button onClick={() => showSection('dashboard')}
+                            className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection === 'dashboard' ? 'text-blue-400' : 'text-slate-300 hover:text-white'}`}>
+                      Dashboard
+                    </button>
+                    <button onClick={() => showSection('transactions')}
+                            className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection === 'transactions' ? 'text-blue-400' : 'text-slate-300 hover:text-white'}`}>
+                      Transactions
+                    </button>
+                    <button onClick={() => showSection('goals')}
+                            className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection === 'goals' ? 'text-blue-400' : 'text-slate-300 hover:text-white'}`}>
+                      Goals
+                    </button>
+                    <button onClick={() => showSection('insights')}
+                            className={`px-3 py-2 rounded-md text-sm font-medium ${activeSection === 'insights' ? 'text-blue-400' : 'text-slate-300 hover:text-white'}`}>
+                      Insights
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    Connect Bank
+                  </button>
+                  <button onClick={handleSignOut}
+                          className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    Sign Out
+                  </button>
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"></div>
+                </div>
               </div>
             </div>
           </nav>
+
+          {/* Page */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {activeSection==='dashboard'&&<Dashboard/>}
-            {activeSection==='transactions'&&<Transactions/>}
-            {activeSection==='goals'&&<Goals/>}
-            {activeSection==='insights'&&<Insights/>}
+            {/* Dashboard */}
+            {activeSection === 'dashboard' && (
+              <div>
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-white mb-2">Welcome back, {userName}! 👋</h1>
+                  <p className="text-slate-400">Here's your financial overview for this month</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                  <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 card-hover">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-slate-400 text-sm font-medium">Net Balance</p>
+                          <select
+                            value={baseCurrency}
+                            onChange={(e) => { setBaseCurrency(e.target.value); localStorage.setItem('userBaseCurrency', e.target.value); }}
+                            className="bg-slate-800 border border-slate-700 text-white text-xs px-2 py-1 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          >
+                            {currencies.map(c => <option key={c.code} value={c.code}>{c.symbol} {c.code}</option>)}
+                          </select>
+                        </div>
+                        <p className="text-2xl font-bold text-white">{currencySymbol}{totals.net}</p>
+                        <p className={`text-sm mt-1 ${parseFloat(totals.net) >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {parseFloat(totals.net) >= 0 ? 'Positive' : 'Negative'} balance
+                        </p>
+                      </div>
+                      <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center ml-4">
+                        <svg className="w-6 h-6 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 card-hover">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm font-medium">Total Expenses</p>
+                        <p className="text-2xl font-bold text-white">{currencySymbol}{totals.expense}</p>
+                        <p className="text-red-400 text-sm mt-1">{transactions.filter(t => t.type !== 'Income').length} transactions</p>
+                      </div>
+                      <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center">
+                        <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 card-hover">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm font-medium">Total Income</p>
+                        <p className="text-2xl font-bold text-white">{currencySymbol}{totals.income}</p>
+                        <p className="text-green-400 text-sm mt-1">{transactions.filter(t => t.type === 'Income').length} transactions</p>
+                      </div>
+                      <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                        <svg className="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 card-hover">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-slate-400 text-sm font-medium">Total Transactions</p>
+                        <p className="text-2xl font-bold text-white">{transactions.length}</p>
+                        <p className="text-purple-400 text-sm mt-1">All time</p>
+                      </div>
+                      <div className="w-12 h-12 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                        <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                  <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">Recent Activity</h3>
+                    <div className="h-48 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="text-4xl mb-4">📊</div>
+                        <p className="text-slate-400">Visual charts coming soon!</p>
+                        <p className="text-sm text-slate-500 mt-2">Your data is being tracked</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">Top Spending Categories</h3>
+                    <div className="space-y-3">
+                      {categoryBreakdown.length > 0 ? categoryBreakdown.map(([category, amount], index) => (
+                        <div key={category} className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className={`w-3 h-3 rounded-full ${
+                              index === 0 ? 'bg-blue-400' :
+                              index === 1 ? 'bg-purple-400' :
+                              index === 2 ? 'bg-pink-400' :
+                              index === 3 ? 'bg-green-400' : 'bg-yellow-400'
+                            }`}></div>
+                            <span className="text-sm text-slate-300">{category}</span>
+                          </div>
+                          <span className="text-sm text-white">{currencySymbol}{amount.toFixed(2)}</span>
+                        </div>
+                      )) : (
+                        <div className="text-center py-8">
+                          <p className="text-slate-400">No expense data yet</p>
+                          <p className="text-sm text-slate-500 mt-1">Start adding transactions to see breakdown</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-semibold text-white">Recent Transactions</h3>
+                    <button onClick={() => showSection('transactions')}
+                            className="text-blue-400 hover:text-blue-300 text-sm font-medium">View All</button>
+                  </div>
+                  <div className="space-y-4">
+                    {recentTransactions.length > 0 ? recentTransactions.map((transaction) => (
+                      <div key={transaction.id} className="flex items-center justify-between py-3 border-b border-slate-800">
+                        <div className="flex items-center space-x-3">
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                            transaction.type === 'Income' ? 'bg-green-500/20' : 'bg-red-500/20'
+                          }`}>
+                            <span className={`text-sm ${transaction.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>
+                              {transaction.type === 'Income' ? '💰' :
+                               transaction.subcategory === 'Groceries' ? '🛒' :
+                               transaction.subcategory === 'Transportation' ? '🚗' :
+                               transaction.subcategory === 'Entertainment' ? '🎬' :
+                               transaction.subcategory === 'Utilities' ? '⚡' : '💳'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-white">{transaction.description || transaction.subcategory}</p>
+                            <p className="text-sm text-slate-400">{formatDate(transaction.date)}</p>
+                          </div>
+                        </div>
+                        <span className={`font-medium ${transaction.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>
+                          {transaction.type === 'Income' ? '+' : '-'}{getSymbol(transaction.currency)}{transaction.amount}
+                        </span>
+                      </div>
+                    )) : (
+                      <div className="text-center py-8">
+                        <div className="text-4xl mb-4">📝</div>
+                        <p className="text-slate-400">No transactions yet</p>
+                        <p className="text-sm text-slate-500 mt-1">Your transactions will appear here</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Transactions */}
+            {activeSection === 'transactions' && (
+              <div>
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-white mb-2">All Transactions</h1>
+                  <p className="text-slate-400">View and manage all your financial transactions</p>
+                </div>
+
+                {/* Smart Importer */}
+                <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 mb-8">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                      <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-semibold text-white">Smart Document Importer</h3>
+                      <p className="text-sm text-slate-400">Paste bank statements, receipts, or transaction data to import automatically</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Paste your transaction data below:</label>
+                      <textarea value={pastedText} onChange={(e)=>setPastedText(e.target.value)}
+                                className="w-full h-32 p-4 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                placeholder="Paste bank statements, receipts, or any transaction text here..." disabled={isParsing}></textarea>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <div className="flex-1">
+                        <p className="text-xs text-slate-500">Supports: Bank statements, credit card statements, receipts, and manual transaction lists</p>
+                        {message && (
+                          <p className={`text-sm mt-2 ${message.includes('Error') ? 'text-red-400' : message.includes('Successfully') ? 'text-green-400' : 'text-blue-400'}`}>
+                            {message}
+                          </p>
+                        )}
+                      </div>
+                      <button onClick={handleParseText} disabled={isParsing || !pastedText.trim()}
+                              className={`px-6 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
+                                isParsing || !pastedText.trim() ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                              }`}>
+                        {isParsing ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Processing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                            </svg>
+                            <span>Import Transactions</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* History with Edit/Delete buttons */}
+                <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-semibold text-white">Transaction History ({transactions.length})</h3>
+                    <div className="flex space-x-2">
+                      <button className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm transition-colors">Filter</button>
+                      <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">Export</button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {transactions.length > 0 ? transactions.map((transaction) => (
+                      <div key={transaction.id} className="flex items-center justify-between py-4 border-b border-slate-800">
+                        <div className="flex items-center space-x-4">
+                          <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${transaction.type === 'Income' ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
+                            <span className={`${transaction.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>
+                              {transaction.type === 'Income' ? '💰' :
+                               transaction.subcategory === 'Groceries' ? '🛒' :
+                               transaction.subcategory === 'Transportation' ? '🚗' :
+                               transaction.subcategory === 'Entertainment' ? '🎬' :
+                               transaction.subcategory === 'Utilities' ? '⚡' : '💳'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-white">{transaction.description || transaction.subcategory}</p>
+                            <p className="text-sm text-slate-400">{transaction.subcategory} • {formatDate(transaction.date)}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="text-right">
+                            <span className={`font-medium text-lg ${transaction.type === 'Income' ? 'text-green-400' : 'text-red-400'}`}>
+                              {transaction.type === 'Income' ? '+' : '-'}{getSymbol(transaction.currency)}{transaction.amount}
+                            </span>
+                            <p className="text-xs text-slate-400">{transaction.currency}</p>
+                          </div>
+                          <div className="flex space-x-2">
+                            <button onClick={() => alert('Edit feature coming soon!')} className="p-2 text-slate-400 hover:text-blue-400 transition-colors">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path>
+                              </svg>
+                            </button>
+                            <button onClick={() => alert('Delete feature coming soon!')} className="p-2 text-slate-400 hover:text-red-400 transition-colors">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )) : (
+                      <div className="text-center py-12">
+                        <div className="text-6xl mb-4">📝</div>
+                        <p className="text-xl text-slate-400 mb-2">No transactions yet</p>
+                        <p className="text-slate-500">Start tracking your finances by adding your first transaction</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Goals */}
+            {activeSection === 'goals' && (
+              <div>
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-white mb-2">Financial Goals</h1>
+                  <p className="text-slate-400">Track and manage your savings goals</p>
+                </div>
+                <div className="bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6 mb-8">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-semibold text-white">Goal Planning</h3>
+                    <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                      Add New Goal
+                    </button>
+                  </div>
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🎯</div>
+                    <p className="text-xl text-slate-400 mb-2">Goals feature coming soon!</p>
+                    <p className="text-slate-500">Set and track your financial goals with smart recommendations</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Insights (new layout) */}
+            {activeSection === 'insights' && (
+              <div>
+                <div className="mb-8">
+                  <h1 className="text-3xl font-bold text-white mb-2">Financial Insights</h1>
+                  <p className="text-slate-400">AI-powered insights to improve your financial health</p>
+                </div>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+                  {/* Smart Recommendations */}
+                  <div className="lg:col-span-2 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-semibold text-white">💡 Smart Recommendations</h3>
+                      <button
+                        onClick={handleGenerateInsights}
+                        disabled={isGeneratingInsights}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2 ${
+                          isGeneratingInsights ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}>
+                        {isGeneratingInsights ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            <span>Generating...</span>
+                          </>
+                        ) : (
+                          <span>Generate New Insights</span>
+                        )}
+                      </button>
+                    </div>
+                    <div className="space-y-4">
+                      {insights.length > 0 ? (
+                        insights.map((insight, index) => (
+                          <div key={index} className={`border rounded-lg p-4 ${
+                            insight.type === 'positive' ? 'bg-green-500/10 border-green-500/20' :
+                            insight.type === 'negative' ? 'bg-red-500/10 border-red-500/20' :
+                            'bg-blue-500/10 border-blue-500/20'
+                          }`}>
+                            <h4 className={`font-medium mb-2 ${
+                              insight.type === 'positive' ? 'text-green-400' :
+                              insight.type === 'negative' ? 'text-red-400' : 'text-blue-400'
+                            }`}>{insight.title}</h4>
+                            <p className="text-sm text-slate-300">{insight.recommendation}</p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-8 text-slate-400">
+                          <p>Click "Generate New Insights" to get personalized recommendations from your latest transactions.</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Spending Patterns */}
+                  <div className="lg:col-span-1 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                    <h3 className="text-xl font-semibold text-white mb-4">📊 Spending Patterns</h3>
+                    <div className="space-y-4">
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-300">Highest spending day</span>
+                        <span className="text-white font-medium">Friday</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-300">Most frequent category</span>
+                        <span className="text-white font-medium">Food & Dining</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-300">Average transaction</span>
+                        <span className="text-white font-medium">$47.32</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-300">Monthly trend</span>
+                        <span className="text-red-400 font-medium">+8.2% ↗</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       );
     };
 
-    /* ----------  APP / AUTH  ---------- */
     const App = () => {
       const [user, setUser] = useState(null);
+      const [isInitializing, setIsInitializing] = useState(true);
       const [error, setError] = useState('');
 
-      useEffect(()=>{
-        const fbConfig = { /* your firebase config */ };
-        firebase.initializeApp(fbConfig);
-        return firebase.auth().onAuthStateChanged(setUser);
-      },[]);
+      useEffect(() => {
+        const firebaseConfig = {
+          apiKey: "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484",
+          authDomain: "financial-wellness-dashboard.firebaseapp.com",
+          projectId: "financial-wellness-dashboard",
+          storageBucket: "financial-wellness-dashboard.appspot.com",
+          messagingSenderId: "599378817258",
+          appId: "1:599378817258:web:95841307d6960986f36793"
+        };
+
+        try {
+          if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+          const unsubscribe = firebase.auth().onAuthStateChanged((currentUser) => {
+            setUser(currentUser);
+            setIsInitializing(false);
+          });
+          return () => unsubscribe();
+        } catch (err) {
+          console.error("Firebase init error:", err);
+          setError("Failed to initialize app");
+          setIsInitializing(false);
+        }
+      }, []);
+
+      if (isInitializing) {
+        return (
+          <div className="flex items-center justify-center min-h-screen bg-slate-950">
+            <div className="text-center">
+              <div className="text-4xl font-bold gradient-text mb-4">Clarity</div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="text-slate-400 mt-4">Loading your dashboard...</p>
+            </div>
+          </div>
+        );
+      }
+
+      if (error) {
+        return (
+          <div className="flex items-center justify-center min-h-screen bg-slate-950">
+            <div className="text-center">
+              <div className="text-red-400 text-xl mb-4">⚠️ Error</div>
+              <p className="text-slate-400">{error}</p>
+            </div>
+          </div>
+        );
+      }
 
       return user ? <FinancialDashboard user={user}/> : <LoginPage setError={setError}/>;
     };
 
-    ReactDOM.render(<App/>, document.getElementById('root'));
+    ReactDOM.render(<App />, document.getElementById('root'));
   </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97dd3fafd2df3415',t:'MTc1NzY1NzUwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
