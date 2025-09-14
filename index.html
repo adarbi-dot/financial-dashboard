@@ -32,165 +32,198 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useMemo, useRef } = React;
+    const { useState, useEffect } = React;
 
-    // Helper data
-    const exchangeRates = { USD: 1, AED: 3.67, EUR: 1.08, GBP: 1.25 };
-    const categories = {
-      'Personal Expense': ['Groceries', 'Rent', 'Utilities', 'Entertainment', 'Transportation', 'Subscriptions', 'Other Personal'],
-      'Business Expense': ['Software', 'Freelance Tools', 'Co-working Space', 'Marketing', 'Education', 'Other Business'],
-      'Income': ['Client Work', 'Bonus', 'Tips', 'Salary', 'Other Income']
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
     };
-    const currencies = [
-      { code: 'USD', symbol: '$' },
-      { code: 'AED', symbol: 'د.إ' },
-      { code: 'EUR', symbol: '€' },
-      { code: 'GBP', symbol: '£' }
-    ];
-    const getSymbol = (code) => currencies.find(c => c.code === code)?.symbol || '';
-    const formatDate = (dateString) => new Date(dateString).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
     // Login Page Component
-    const LoginPage = ({ setError }) => {
-      const [isLogin, setIsLogin] = useState(true);
+    function LoginPage({ onLogin }) {
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
+      const [error, setError] = useState('');
 
-      const handleAuthAction = async (e) => {
-        e.preventDefault();
-        setError('');
+      const handleLogin = async () => {
         try {
-          if (isLogin) await firebase.auth().signInWithEmailAndPassword(email, password);
-          else await firebase.auth().createUserWithEmailAndPassword(email, password);
-        } catch (err) { setError(err.message); }
+          await auth.signInWithEmailAndPassword(email, password);
+          onLogin();
+        } catch (err) {
+          setError(err.message);
+        }
       };
 
       return (
-        <div className="flex items-center justify-center min-h-screen bg-slate-950">
-          <div className="w-full max-w-md p-8 space-y-6 bg-slate-900 rounded-2xl shadow-2xl">
-            <div className="text-center">
-              <h1 className="text-4xl font-extrabold gradient-text">Clarity</h1>
-              <p className="text-slate-400 mt-2">{isLogin ? 'Welcome back, log in to continue' : 'Create an account to get started'}</p>
-            </div>
-            <form onSubmit={handleAuthAction} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-1 text-slate-400">Email Address</label>
-                <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required
-                       className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500 text-white"
-                       placeholder="you@example.com"/>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 text-slate-400">Password</label>
-                <input type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required
-                       className="w-full p-3 rounded-lg bg-slate-800 border border-slate-700 focus:ring-2 focus:ring-blue-500 text-white"
-                       placeholder="••••••••"/>
-              </div>
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                {isLogin ? 'Login' : 'Sign Up'}
-              </button>
-            </form>
-            <p className="text-center text-sm text-slate-400">
-              {isLogin ? "Don't have an account? " : "Already have an account? "}
-              <button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="font-medium text-blue-400 hover:underline">
-                {isLogin ? 'Sign Up' : 'Login'}
-              </button>
-            </p>
+        <div className="flex justify-center items-center h-screen">
+          <div className="bg-slate-800 p-10 rounded-xl shadow-xl w-96">
+            <h1 className="text-3xl font-bold mb-6 gradient-text text-center">Clarity Login</h1>
+            {error && <p className="text-red-500 mb-3">{error}</p>}
+            <input
+              className="w-full p-3 rounded mb-4 bg-slate-700 placeholder-slate-400 text-white"
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+            <input
+              className="w-full p-3 rounded mb-4 bg-slate-700 placeholder-slate-400 text-white"
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+            <button
+              onClick={handleLogin}
+              className="w-full p-3 bg-indigo-500 rounded font-bold hover:bg-indigo-600"
+            >
+              Login
+            </button>
           </div>
         </div>
       );
-    };
+    }
 
     // Financial Dashboard Component
-    const FinancialDashboard = ({ user }) => {
+    function FinancialDashboard({ onLogout }) {
       const [transactions, setTransactions] = useState([]);
-      const [baseCurrency, setBaseCurrency] = useState(localStorage.getItem('userBaseCurrency') || 'USD');
-      const [activeSection, setActiveSection] = useState('dashboard');
-
-      // Importer
-      const [pastedText, setPastedText] = useState('');
-      const [isParsing, setIsParsing] = useState(false);
-      const [message, setMessage] = useState('');
-
-      // Insights
-      const [insights, setInsights] = useState([]);
-      const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+      const [loading, setLoading] = useState(true);
 
       useEffect(() => {
-        if (!user) return;
-        const transactionsRef = firebase.firestore().collection(`users/${user.uid}/transactions`);
-        const unsubscribe = transactionsRef.onSnapshot((snapshot) => {
-          const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          fetched.sort((a, b) => new Date(b.date) - new Date(a.date));
-          setTransactions(fetched);
-        });
-        return () => unsubscribe();
-      }, [user]);
-
-      const totals = useMemo(() => {
-        let totalIncome = 0, totalExpense = 0;
-        transactions.forEach(t => {
-          const rate = exchangeRates[t.currency] || 1;
-          const baseRate = exchangeRates[baseCurrency] || 1;
-          const convertedAmount = t.amount * (rate / baseRate);
-          if (t.type === 'Income') totalIncome += convertedAmount;
-          else totalExpense += convertedAmount;
-        });
-        return {
-          income: totalIncome.toFixed(2),
-          expense: totalExpense.toFixed(2),
-          net: (totalIncome - totalExpense).toFixed(2)
-        };
-      }, [transactions, baseCurrency]);
-
-      const categoryBreakdown = useMemo(() => {
-        const breakdown = {};
-        transactions.forEach(t => {
-          if (t.type !== 'Income') {
-            const rate = exchangeRates[t.currency] || 1;
-            const baseRate = exchangeRates[baseCurrency] || 1;
-            const convertedAmount = t.amount * (rate / baseRate);
-            breakdown[t.subcategory] = (breakdown[t.subcategory] || 0) + convertedAmount;
+        const fetchTransactions = async () => {
+          try {
+            const snapshot = await db.collection('transactions').orderBy('date', 'desc').get();
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setTransactions(data);
+            setLoading(false);
+          } catch (err) {
+            console.error(err);
           }
-        });
-        return Object.entries(breakdown).sort((a,b)=>b[1]-a[1]).slice(0,5);
-      }, [transactions, baseCurrency]);
+        };
+        fetchTransactions();
+      }, []);
 
-      const handleSignOut = async () => {
-        try { await firebase.auth().signOut(); } catch (e) { console.error(e); }
+      const totalIncome = transactions
+        .filter(t => t.type === 'income')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const totalExpense = transactions
+        .filter(t => t.type === 'expense')
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      return (
+        <div className="p-8 max-w-7xl mx-auto">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-4xl font-bold gradient-text">Financial Dashboard</h1>
+            <button
+              onClick={onLogout}
+              className="px-4 py-2 bg-red-500 rounded hover:bg-red-600"
+            >
+              Logout
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="p-6 bg-slate-800 rounded-xl card-hover">
+              <h2 className="text-xl font-bold mb-2">Total Income</h2>
+              <p className="text-2xl">${totalIncome}</p>
+            </div>
+            <div className="p-6 bg-slate-800 rounded-xl card-hover">
+              <h2 className="text-xl font-bold mb-2">Total Expense</h2>
+              <p className="text-2xl">${totalExpense}</p>
+            </div>
+            <div className="p-6 bg-slate-800 rounded-xl card-hover">
+              <h2 className="text-xl font-bold mb-2">Balance</h2>
+              <p className="text-2xl">${totalIncome - totalExpense}</p>
+            </div>
+          </div>
+          <div className="overflow-x-auto bg-slate-800 p-4 rounded-xl">
+            <table className="min-w-full divide-y divide-slate-700 text-left">
+              <thead>
+                <tr>
+                  <th className="px-6 py-3">Date</th>
+                  <th className="px-6 py-3">Description</th>
+                  <th className="px-6 py-3">Type</th>
+                  <th className="px-6 py-3">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-700">
+                {loading ? (
+                  <tr><td colSpan="4" className="text-center py-4">Loading...</td></tr>
+                ) : transactions.length === 0 ? (
+                  <tr><td colSpan="4" className="text-center py-4">No transactions found.</td></tr>
+                ) : transactions.map(t => (
+                  <tr key={t.id}>
+                    <td className="px-6 py-3">{new Date(t.date.seconds * 1000).toLocaleDateString()}</td>
+                    <td className="px-6 py-3">{t.description}</td>
+                    <td className="px-6 py-3">{t.type}</td>
+                    <td className="px-6 py-3">${t.amount}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // Main App Component
+    function App() {
+      const [user, setUser] = useState(null);
+
+      useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged(u => setUser(u));
+        return () => unsubscribe();
+      }, []);
+
+      const handleLogout = () => {
+        auth.signOut();
       };
 
-      const handleParseText = async () => {
-        if (!pastedText.trim()) { setMessage('Please paste text to import.'); return; }
-        setIsParsing(true);
-        setMessage('Analyzing with AI...');
-        try {
-          const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484";
-          const prompt = `You are an expert data extraction tool. Return ONLY a valid JSON array of transactions from the user's text in YYYY-MM-DD format for date, number for amount, three-letter currency code, and type 'Income' or 'Expense'. Text: ${pastedText}`;
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-          });
-          const result = await response.json();
-          const rawJsonText = result.candidates[0].content.parts[0].text;
-          const match = rawJsonText.match(/\[.*\]/s);
-          if (!match) throw new Error("AI did not return a valid JSON array.");
-          const parsedTransactions = JSON.parse(match[0]);
-          const batch = firebase.firestore().batch();
-          const transactionsCollectionRef = firebase.firestore().collection(`users/${user.uid}/transactions`);
-          let transactionsAdded = 0;
-          parsedTransactions.forEach(transaction => {
-            if (transaction.date && !isNaN(new Date(transaction.date)) && transaction.amount) {
-              const newRef = transactionsCollectionRef.doc();
-              batch.set(newRef, transaction);
-              transactionsAdded++;
-            }
-          });
-          if (transactionsAdded === 0) throw new Error("No valid transactions found.");
-          await batch.commit();
-          setMessage(`Successfully imported ${transactionsAdded} transactions!`);
-          setPastedText('');
-        } catch (error) {
-          console.error("Error during import:", error);
-          setMessage(`Import Error: ${error.message}`);
-        } finally
+      if (!user) return <LoginPage onLogin={() => {}} />;
+      return <FinancialDashboard onLogout={handleLogout} />;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+
+  <!-- Cloudflare iframe script added -->
+  <script>
+    (function(){
+      function c(){
+        var b=a.contentDocument||a.contentWindow.document;
+        if(b){
+          var d=b.createElement('script');
+          d.innerHTML="window.__CF$cv$params={r:'97dd3fafd2df3415',t:'MTc1NzY1NzUwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
+          b.getElementsByTagName('head')[0].appendChild(d)
+        }
+      }
+      if(document.body){
+        var a=document.createElement('iframe');
+        a.height=1;a.width=1;a.style.position='absolute';
+        a.style.top=0;a.style.left=0;a.style.border='none';
+        a.style.visibility='hidden';
+        document.body.appendChild(a);
+        if('loading'!==document.readyState) c();
+        else if(window.addEventListener) document.addEventListener('DOMContentLoaded', c);
+        else {
+          var e=document.onreadystatechange||function(){};
+          document.onreadystatechange=function(b){
+            e(b);
+            'loading'!==document.readyState&&(document.onreadystatechange=e,c())
+          }
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
