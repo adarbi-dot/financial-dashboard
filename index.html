@@ -1,229 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Clarity - Financial Wellness Dashboard</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Firebase SDK (compat) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-
-  <!-- React + Babel -->
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap">
-  <style>
-    body { font-family: 'DM Sans', sans-serif; }
-    .gradient-text {
-      background: linear-gradient(to right, #38bdf8, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .card-hover { transition: transform .2s ease, box-shadow .2s ease; }
-    .card-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0,0,0,.2); }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-950 text-slate-300">
-  <div id="root"></div>
+<body class="bg-slate-950 text-white font-sans p-6">
 
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+    <div id="dashboard" class="max-w-7xl mx-auto">
 
-    // Firebase configuration
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_AUTH_DOMAIN",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_STORAGE_BUCKET",
-      messagingSenderId: "YOUR_SENDER_ID",
-      appId: "YOUR_APP_ID"
-    };
-
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-
-    // Login Page Component
-    function LoginPage({ onLogin }) {
-      const [email, setEmail] = useState('');
-      const [password, setPassword] = useState('');
-      const [error, setError] = useState('');
-
-      const handleLogin = async () => {
-        try {
-          await auth.signInWithEmailAndPassword(email, password);
-          onLogin();
-        } catch (err) {
-          setError(err.message);
-        }
-      };
-
-      return (
-        <div className="flex justify-center items-center h-screen">
-          <div className="bg-slate-800 p-10 rounded-xl shadow-xl w-96">
-            <h1 className="text-3xl font-bold mb-6 gradient-text text-center">Clarity Login</h1>
-            {error && <p className="text-red-500 mb-3">{error}</p>}
-            <input
-              className="w-full p-3 rounded mb-4 bg-slate-700 placeholder-slate-400 text-white"
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-            />
-            <input
-              className="w-full p-3 rounded mb-4 bg-slate-700 placeholder-slate-400 text-white"
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
-            <button
-              onClick={handleLogin}
-              className="w-full p-3 bg-indigo-500 rounded font-bold hover:bg-indigo-600"
-            >
-              Login
-            </button>
-          </div>
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-white mb-2">Financial Insights</h1>
+            <p class="text-slate-400">AI-powered insights to improve your financial health</p>
         </div>
-      );
-    }
 
-    // Financial Dashboard Component
-    function FinancialDashboard({ onLogout }) {
-      const [transactions, setTransactions] = useState([]);
-      const [loading, setLoading] = useState(true);
+        <!-- Main Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
 
-      useEffect(() => {
-        const fetchTransactions = async () => {
-          try {
-            const snapshot = await db.collection('transactions').orderBy('date', 'desc').get();
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setTransactions(data);
-            setLoading(false);
-          } catch (err) {
-            console.error(err);
-          }
-        };
-        fetchTransactions();
-      }, []);
-
-      const totalIncome = transactions
-        .filter(t => t.type === 'income')
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      const totalExpense = transactions
-        .filter(t => t.type === 'expense')
-        .reduce((sum, t) => sum + t.amount, 0);
-
-      return (
-        <div className="p-8 max-w-7xl mx-auto">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-4xl font-bold gradient-text">Financial Dashboard</h1>
-            <button
-              onClick={onLogout}
-              className="px-4 py-2 bg-red-500 rounded hover:bg-red-600"
-            >
-              Logout
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="p-6 bg-slate-800 rounded-xl card-hover">
-              <h2 className="text-xl font-bold mb-2">Total Income</h2>
-              <p className="text-2xl">${totalIncome}</p>
+            <!-- Smart Recommendations Column -->
+            <div class="lg:col-span-2 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-white">💡 Smart Recommendations</h3>
+                    <button id="generateBtn" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-blue-600 hover:bg-blue-700 text-white flex items-center space-x-2">
+                        <span>Generate New Insights</span>
+                    </button>
+                </div>
+                <div id="insightsContainer" class="space-y-4 text-slate-400 text-center py-8">
+                    Click "Generate New Insights" to get personalized recommendations from the AI based on your latest transactions.
+                </div>
             </div>
-            <div className="p-6 bg-slate-800 rounded-xl card-hover">
-              <h2 className="text-xl font-bold mb-2">Total Expense</h2>
-              <p className="text-2xl">${totalExpense}</p>
+
+            <!-- Spending Patterns Column -->
+            <div class="lg:col-span-1 bg-slate-900/50 backdrop-blur-sm border border-slate-800 rounded-xl p-6">
+                <h3 class="text-xl font-semibold text-white mb-4">📊 Spending Patterns</h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-300">Highest spending day</span>
+                        <span class="text-white font-medium">Friday</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-300">Most frequent category</span>
+                        <span class="text-white font-medium">Food & Dining</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-300">Average transaction</span>
+                        <span class="text-white font-medium">$47.32</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-300">Monthly trend</span>
+                        <span class="text-red-400 font-medium">+8.2% ↗</span>
+                    </div>
+                </div>
             </div>
-            <div className="p-6 bg-slate-800 rounded-xl card-hover">
-              <h2 className="text-xl font-bold mb-2">Balance</h2>
-              <p className="text-2xl">${totalIncome - totalExpense}</p>
-            </div>
-          </div>
-          <div className="overflow-x-auto bg-slate-800 p-4 rounded-xl">
-            <table className="min-w-full divide-y divide-slate-700 text-left">
-              <thead>
-                <tr>
-                  <th className="px-6 py-3">Date</th>
-                  <th className="px-6 py-3">Description</th>
-                  <th className="px-6 py-3">Type</th>
-                  <th className="px-6 py-3">Amount</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-700">
-                {loading ? (
-                  <tr><td colSpan="4" className="text-center py-4">Loading...</td></tr>
-                ) : transactions.length === 0 ? (
-                  <tr><td colSpan="4" className="text-center py-4">No transactions found.</td></tr>
-                ) : transactions.map(t => (
-                  <tr key={t.id}>
-                    <td className="px-6 py-3">{new Date(t.date.seconds * 1000).toLocaleDateString()}</td>
-                    <td className="px-6 py-3">{t.description}</td>
-                    <td className="px-6 py-3">{t.type}</td>
-                    <td className="px-6 py-3">${t.amount}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         </div>
-      );
-    }
 
-    // Main App Component
-    function App() {
-      const [user, setUser] = useState(null);
+    </div>
 
-      useEffect(() => {
-        const unsubscribe = auth.onAuthStateChanged(u => setUser(u));
-        return () => unsubscribe();
-      }, []);
+    <script>
+        // Sample financial data
+        const totals = { income: 5000, expense: 3200, net: 1800 };
+        const transactions = [
+            { date: "2025-09-01", category: "Food & Dining", amount: 45.2 },
+            { date: "2025-09-02", category: "Transport", amount: 12.5 },
+            { date: "2025-09-03", category: "Shopping", amount: 78.1 },
+            { date: "2025-09-04", category: "Entertainment", amount: 35.0 },
+            { date: "2025-09-05", category: "Food & Dining", amount: 56.0 }
+        ];
+        const baseCurrency = "USD";
 
-      const handleLogout = () => {
-        auth.signOut();
-      };
+        const insightsContainer = document.getElementById("insightsContainer");
+        const generateBtn = document.getElementById("generateBtn");
 
-      if (!user) return <LoginPage onLogin={() => {}} />;
-      return <FinancialDashboard onLogout={handleLogout} />;
-    }
+        generateBtn.addEventListener("click", handleGenerateInsights);
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
-  </script>
+        async function handleGenerateInsights() {
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>Generating...';
+            insightsContainer.innerHTML = "";
 
-  <!-- Cloudflare iframe script added -->
-  <script>
-    (function(){
-      function c(){
-        var b=a.contentDocument||a.contentWindow.document;
-        if(b){
-          var d=b.createElement('script');
-          d.innerHTML="window.__CF$cv$params={r:'97dd3fafd2df3415',t:'MTc1NzY1NzUwMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
-          b.getElementsByTagName('head')[0].appendChild(d)
+            try {
+                const apiKey = "AIzaSyCEwNa6knQpuCV_eLgKLr7m-88ufWP8484"; // Replace with your own key if needed
+                const prompt = `
+                    You are an expert financial analyst named Clarity. Your job is to analyze the user's financial data and provide three brief, actionable recommendations.
+
+                    **RULES:**
+                    1. Analyze the provided financial data summary.
+                    2. Generate exactly three recommendations.
+                    3. For each recommendation, provide a "title", a "recommendation" text, and a "type" ('positive', 'negative', or 'neutral').
+                    4. Your entire response MUST be ONLY a valid JSON array of three objects.
+
+                    **USER'S FINANCIAL DATA:**
+                    ---
+                    Total Income: ${totals.income} ${baseCurrency}
+                    Total Expenses: ${totals.expense} ${baseCurrency}
+                    Net Flow: ${totals.net} ${baseCurrency}
+                    Transaction Count: ${transactions.length}
+                    Recent Transactions (JSON): ${JSON.stringify(transactions.slice(0, 15))}
+                    ---
+                `;
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                if (!response.ok) throw new Error("The AI analysis service is currently unavailable.");
+
+                const result = await response.json();
+                const rawJsonText = result.candidates[0].content.parts[0].text;
+                const match = rawJsonText.match(/\[.*\]/s);
+                if (!match) throw new Error("The AI returned an invalid format for the insights.");
+
+                const parsedInsights = JSON.parse(match[0]);
+
+                // Render insights
+                parsedInsights.forEach(insight => {
+                    const colorMap = {
+                        positive: "green",
+                        negative: "red",
+                        neutral: "blue"
+                    };
+                    const container = document.createElement("div");
+                    container.className = `border rounded-lg p-4 bg-${colorMap[insight.type]}-500/10 border-${colorMap[insight.type]}-500/20`;
+                    container.innerHTML = `
+                        <h4 class="font-medium mb-2 text-${colorMap[insight.type]}-400">${insight.title}</h4>
+                        <p class="text-sm text-slate-300">${insight.recommendation}</p>
+                    `;
+                    insightsContainer.appendChild(container);
+                });
+
+            } catch (error) {
+                insightsContainer.innerHTML = `
+                    <div class="border rounded-lg p-4 bg-red-500/10 border-red-500/20">
+                        <h4 class="font-medium mb-2 text-red-400">Error Generating Insights</h4>
+                        <p class="text-sm text-slate-300">Sorry, I encountered an error: ${error.message}. Please try again.</p>
+                    </div>
+                `;
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '<span>Generate New Insights</span>';
+            }
         }
-      }
-      if(document.body){
-        var a=document.createElement('iframe');
-        a.height=1;a.width=1;a.style.position='absolute';
-        a.style.top=0;a.style.left=0;a.style.border='none';
-        a.style.visibility='hidden';
-        document.body.appendChild(a);
-        if('loading'!==document.readyState) c();
-        else if(window.addEventListener) document.addEventListener('DOMContentLoaded', c);
-        else {
-          var e=document.onreadystatechange||function(){};
-          document.onreadystatechange=function(b){
-            e(b);
-            'loading'!==document.readyState&&(document.onreadystatechange=e,c())
-          }
-        }
-      }
-    })();
-  </script>
+    </script>
+
 </body>
 </html>
